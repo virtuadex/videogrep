@@ -170,3 +170,7 @@ def main():
         write_vtt=args.write_vtt,
         preview=args.preview,
     )
+
+
+if __name__ == "__main__":
+    main()

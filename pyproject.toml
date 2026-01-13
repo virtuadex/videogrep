@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "videogrep"
-version = "2.3.0"
+version = "2.3.1"
 description = "Videogrep is a command line tool that searches through dialog in video and audio files and makes supercuts based on what it finds. Like grep but for video."
 authors = ["Sam Lavigne <splavigne@gmail.com>"]
 license = "Anti-Capitalist"
@@ -17,12 +17,18 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = "^3.8"
-beautifulsoup4 = "^4.11.1"
+beautifulsoup4 = "^4.12.3"
 moviepy = "^1.0.3"
-vosk = {version = "0.3.32", optional = true}
+imageio-ffmpeg = "*"
+vosk = {version = ">=0.3.32", optional = true}
+openai-whisper = {version = "*", optional = true}
+spacy = {version = "*", optional = true}
 
 [tool.poetry.extras]
-full = ["vosk"]
+full = ["vosk", "openai-whisper", "spacy"]
+vosk = ["vosk"]
+whisper = ["openai-whisper"]
+nlp = ["spacy"]
 
 [tool.poetry.dev-dependencies]
 tox = "^3.25.0"

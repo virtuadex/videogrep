@@ -417,6 +417,9 @@ def create_supercut(composition: List[dict], outputfile: str):
         final_clip.write_videofile(
             outputfile,
             codec="libx264",
+            bitrate="8000k",
+            audio_bitrate="192k",
+            preset="medium",
             temp_audiofile=f"{outputfile}_temp-audio{time.time()}.m4a",
             remove_temp=True,
             audio_codec="aac",
@@ -488,6 +491,9 @@ def create_supercut_in_batches(composition: List[dict], outputfile: str):
         video.write_videofile(
             outputfile,
             codec="libx264",
+            bitrate="8000k",
+            audio_bitrate="192k",
+            preset="medium",
             temp_audiofile=f"{outputfile}_temp-audio{time.time()}.m4a",
             remove_temp=True,
             audio_codec="aac",
@@ -535,6 +541,9 @@ def export_individual_clips(composition: List[dict], outputfile: str):
             clip.write_videofile(
                 clipfilename,
                 codec="libx264",
+                bitrate="8000k",
+                audio_bitrate="192k",
+                preset="medium",
                 temp_audiofile="{clipfilename}_temp-audio.m4a",
                 remove_temp=True,
                 audio_codec="aac",
@@ -675,6 +684,11 @@ def videogrep(
         edl = "edl://" + ";".join(lines)
         subprocess.run(["mpv", edl])
         return True
+
+    # ensure output directory exists
+    output_dir = os.path.dirname(output)
+    if output_dir != "" and not os.path.exists(output_dir):
+        os.makedirs(output_dir)
 
     # export individual clips
     if export_clips:

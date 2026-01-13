@@ -6,6 +6,7 @@ from moviepy.editor import VideoFileClip
 from pytest import approx
 import glob
 import subprocess
+import sys
 
 
 def get_duration(input_video):
@@ -668,9 +669,9 @@ def test_cli():
     outfile = File("test_outputs/supercut.mp4")
     subprocess.run(
         [
-            "poetry",
-            "run",
-            "videogrep",
+            sys.executable,
+            "-m",
+            "videogrep.cli",
             "--input",
             infile,
             "--output",
@@ -690,9 +691,9 @@ def test_cli():
     outfile_audio = File("test_outputs/supercut.mp3")
     subprocess.run(
         [
-            "poetry",
-            "run",
-            "videogrep",
+            sys.executable,
+            "-m",
+            "videogrep.cli",
             "--input",
             infile_audio,
             "--output",

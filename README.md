@@ -18,21 +18,50 @@ See my blog for a short [tutorial on videogrep and yt-dlp](https://lav.io/notes/
 
 ## Installation
 
-Videogrep is compatible with Python versions 3.6 to 3.10.
+Videogrep is compatible with Python versions 3.8 to 3.12.
 
-To install:
+To install the base version:
 
 ```
 pip install videogrep
 ```
 
-If you want to transcribe video or audio, you also need to install [vosk](https://alphacephei.com/vosk/):
+### Optional Extras
+
+You can install additional features using extras:
+
+* **Vosk (Speech-to-text):** `pip install videogrep[vosk]`
+* **Whisper (Advanced Speech-to-text):** `pip install videogrep[whisper]`
+* **NLP (Natural Language Processing):** `pip install videogrep[nlp]`
+* **Full (All features):** `pip install videogrep[full]`
+
+Note: If you are installing from source, you can use `pip install .[full]`.
+
+---
+
+## Transcription
+
+Videogrep supports multiple ways to generate transcriptions if you don't have subtitle files.
+
+### Vosk (Built-in)
+
+To transcribe video/audio using [vosk](https://alphacephei.com/vosk/):
 
 ```
-pip install vosk
+videogrep -i vid.mp4 --transcribe
 ```
 
-Note: the previous version of videogrep supported pocketsphinx for speech-to-text. Vosk seems *much* better so I've added support for it and will likely be phasing out support for pocketsphinx.
+This will generate a `.json` file in the same folder as the video. By default, this uses vosk's small english model. You can specify a different model with the `--model` flag.
+
+### Whisper (via auto_videogrep.py)
+
+For high-quality transcription using OpenAI's Whisper, you can use the included `auto_videogrep.py` script:
+
+```
+python auto_videogrep.py vid.mp4 "search query" --model medium
+```
+
+This script will automatically transcribe the video using Whisper, save an `.srt` file, and then run `videogrep` on it.
 
 ## Usage
 
