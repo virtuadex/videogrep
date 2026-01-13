@@ -130,6 +130,12 @@ def main():
         help="return ngrams for videos",
     )
     parser.add_argument(
+        "--initial-prompt",
+        "-ip",
+        dest="prompt",
+        help="initial prompt to guide transcription (Whisper only)",
+    )
+    parser.add_argument(
         "--version",
         "-v",
         help="show version",
@@ -161,7 +167,7 @@ def main():
     if args.transcribe:
         from . import transcribe
         for f in args.inputfile:
-            transcribe.transcribe(f, args.model, method=args.method)
+            transcribe.transcribe(f, args.model, method=args.method, prompt=args.prompt)
         return True
 
     if args.search is None:

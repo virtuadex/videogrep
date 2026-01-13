@@ -23,7 +23,7 @@ MAX_CHARS = 36
 MODEL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "model")
 
 
-def transcribe_whisper(videofile: str, model_name: str = "medium") -> List[dict]:
+def transcribe_whisper(videofile: str, model_name: str = "medium", prompt: Optional[str] = None) -> List[dict]:
     """
     Transcribes a video file using OpenAI Whisper
     """
@@ -36,7 +36,7 @@ def transcribe_whisper(videofile: str, model_name: str = "medium") -> List[dict]
     model = whisper.load_model(model_name)
     
     # Transcribe with word timestamps for compatibility with fragment search
-    result = model.transcribe(videofile, word_timestamps=True)
+    result = model.transcribe(videofile, word_timestamps=True, initial_prompt=prompt)
     
     out = []
     for segment in result['segments']:
@@ -130,7 +130,7 @@ def transcribe_vosk(videofile: str, model_path: Optional[str] = None) -> List[di
     return out
 
 
-def transcribe(videofile: str, model_path: Optional[str] = None, method: str = "whisper") -> List[dict]:
+def transcribe(videofile: str, model_path: Optional[str] = None, method: str = "whisper", prompt: Optional[str] = None) -> List[dict]:
     """
     Transcribes a video file. Tries Whisper first if method is whisper, 
     otherwise falls back to Vosk.
@@ -158,7 +158,7 @@ def transcribe(videofile: str, model_path: Optional[str] = None, method: str = "
             _model = "medium"
             if model_path is not None:
                 _model = model_path
-            out = transcribe_whisper(videofile, _model)
+            out = transcribe_whisper(videofile, _model, prompt=prompt)
         except Exception as e:
             logger.warning(f"Whisper transcription failed, falling back to Vosk: {e}")
             if VOSK_AVAILABLE:

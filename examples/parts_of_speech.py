@@ -1,5 +1,7 @@
 import sys
+import argparse
 import videogrep
+from videogrep import transcribe
 import spacy
 
 """
@@ -8,37 +10,73 @@ Make a supercut of different types of words, for example, all nouns.
 To use:
 
 1) Install spacy: pip3 install spacy
-2) Download the small model: python -m spacy download en_core_web_sm
-3) Update the "parts_of_speech" list below to change what you're searching for
-4) Run: python3 parts_of_speech.py somevideo.mp4
+2) Download models: 
+   python -m spacy download en_core_web_sm
+   python -m spacy download pt_core_news_sm
+3) Run: python3 parts_of_speech.py somevideo.mp4 --lang pt
 """
 
-# load spacy
-nlp = spacy.load("en_core_web_sm")
+def load_spacy_model(lang):
+    """Tries to load the best available model for the language."""
+    if lang == "en":
+        models = ["en_core_web_trf", "en_core_web_lg", "en_core_web_sm"]
+    else:
+        models = ["pt_core_news_lg", "pt_core_news_sm"]
 
-# the videos we are working with
-videos = sys.argv[1:]
+    for model in models:
+        try:
+            print(f"Attempting to load spacy model: {model}")
+            return spacy.load(model)
+        except OSError:
+            continue
+    
+    print(f"Error: No spacy models found for language '{lang}'.")
+    print(f"Please run: python -m spacy download {models[0]}")
+    sys.exit(1)
 
-# create a list of types of words we are looking for
-# can be anything from:
-# https://universaldependencies.org/u/pos/
-parts_of_speech = ["NOUN"]
+def main():
+    parser = argparse.ArgumentParser(description="Make a supercut of different types of words.")
+    parser.add_argument("videos", nargs="+", help="The videos we are working with")
+    parser.add_argument("--lang", choices=["en", "pt"], default="en", help="Language: en or pt. Default: en.")
+    parser.add_argument("--pos", nargs="+", default=["NOUN"], help="Parts of speech to search for. Default: NOUN.")
+    parser.add_argument("--output", "-o", default="part_of_speech_supercut.mp4", help="Output filename.")
+    
+    args = parser.parse_args()
 
+    # Enable GPU if available
+    if spacy.prefer_gpu():
+        print("GPU detected! Using GPU for spacy processing.")
+    else:
+        print("No GPU detected or spacy-transformers not configured for GPU. Using CPU.")
 
-search_words = []
+    nlp = load_spacy_model(args.lang)
 
-for video in videos:
-    transcript = videogrep.parse_transcript(video)
-    for sentence in transcript:
-        doc = nlp(sentence["content"])
-        for token in doc:
-            # token.pos_ has Coarse-grained part-of-speech
-            # switch to token.tag_ if you want fine-grained pos
-            if token.pos_ in parts_of_speech:
-                # ensure we're only going to grab exact words
-                search_words.append(f"^{token.text}$")
+    search_words = []
 
-query = "|".join(search_words)
-videogrep.videogrep(
-    videos, query, search_type="fragment", output="part_of_speech_supercut.mp4"
-)
+    for video in args.videos:
+        # ensure transcript exists
+        if not videogrep.find_transcript(video):
+            print(f"Transcript not found for {video}. Transcribing with Whisper...")
+            transcribe.transcribe(video, method="whisper")
+
+        transcript = videogrep.parse_transcript(video)
+        if not transcript:
+            continue
+
+        for sentence in transcript:
+            doc = nlp(sentence["content"])
+            for token in doc:
+                if token.pos_ in args.pos:
+                    # ensure we're only going to grab exact words
+                    search_words.append(f"^{token.text}$")
+
+    if search_words:
+        query = "|".join(search_words)
+        videogrep.videogrep(
+            args.videos, query, search_type="fragment", output=args.output
+        )
+    else:
+        print("No matching parts of speech found.")
+
+if __name__ == "__main__":
+    main()

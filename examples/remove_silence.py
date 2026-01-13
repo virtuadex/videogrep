@@ -6,17 +6,29 @@ to run: python3 remove_silences.py SOMEVIDEO.mp4
 """
 
 import sys
-from videogrep import parse_transcript, create_supercut_in_batches
+import videogrep
+from videogrep import parse_transcript, create_supercut_in_batches, transcribe
 
 # the min duration of silences to remove
 min_duration = 1.0
 
 filenames = sys.argv[1:]
 
+if not filenames:
+    print("Usage: python remove_silence.py <video_file(s)>")
+    sys.exit(1)
+
 clips = []
 
 for filename in filenames:
+    # ensure transcript exists
+    if not videogrep.find_transcript(filename):
+        print(f"Transcript not found for {filename}. Transcribing with Whisper...")
+        transcribe.transcribe(filename, method="whisper")
+
     timestamps = parse_transcript(filename)
+    if not timestamps:
+        continue
 
     if "words" in timestamps[0]:
         words = []
@@ -37,6 +49,9 @@ for filename in filenames:
                 clip["end"] = word1["end"]
                 clips.append(clip)
                 clip = {"start": word2["start"], "end": word2["end"], "file": filename}
+        
+        # Add the last clip
+        clips.append(clip)
 
     else:
         clip = {
@@ -59,6 +74,12 @@ for filename in filenames:
                     "end": sentence2["end"],
                     "file": filename,
                 }
+        
+        # Add the last clip
+        clips.append(clip)
 
 
-create_supercut_in_batches(clips, "no_silences.mp4")
+if clips:
+    create_supercut_in_batches(clips, "no_silences.mp4")
+else:
+    print("No clips found to export.")

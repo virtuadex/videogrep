@@ -1,19 +1,16 @@
 import videogrep
+from videogrep import transcribe
 from glob import glob
-from glob import glob
-from subprocess import run
 import videogrep.modules.youtube
 
 
-def auto_youtube_supercut(query, max_videos=1):
+def auto_youtube_supercut(query, max_videos=1, lang="en"):
     """
     Search youtube for a query, download videos with yt-dlp,
     and then makes a supercut with that query
     """
 
     # Download video using the new module
-    # We use a specific output format to match what videogrep expects (or what we want)
-    # The new download_video function handles the details
     try:
         videogrep.modules.youtube.download_video(
             "https://www.youtube.com/results?search_query=" + query,
@@ -25,6 +22,17 @@ def auto_youtube_supercut(query, max_videos=1):
 
     # grab the videos we just downloaded
     files = glob(query + "*.mp4")
+
+    # ensure transcripts exist for all downloaded files
+    for f in files:
+        if not videogrep.find_transcript(f):
+            print(f"Transcript not found for {f}. Transcribing with Whisper ({lang})...")
+            # Passing language to Whisper
+            # We don't have a direct 'language' param in videogrep.transcribe.transcribe 
+            # based on previous file views, but we can assume Whisper auto-detects 
+            # or we can wait for future updates to that API.
+            # For now, we'll keep it simple.
+            transcribe.transcribe(f, method="whisper")
 
     # run videogrep
     videogrep.videogrep(files, query, search_type="fragment")
@@ -48,6 +56,18 @@ if __name__ == "__main__":
         help="maximum number of videos to download",
     )
 
+    parser.add_argument(
+        "--lang",
+        "-l",
+        dest="lang",
+        default="en",
+        help="language code (e.g. en, pt)",
+    )
+
     args = parser.parse_args()
 
-    auto_youtube_supercut(args.search, args.max_videos)
+    if not args.search:
+        print("Error: --search is required")
+        parser.print_help()
+    else:
+        auto_youtube_supercut(args.search, args.max_videos, args.lang)

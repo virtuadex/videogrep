@@ -52,12 +52,12 @@ def find_transcript(videoname: str, prefer: Optional[str] = None) -> Optional[st
 
     for ext in _sub_exts:
         pattern = (
-            re.escape(os.path.splitext(videoname)[0])
+            re.escape(os.path.splitext(videoname)[0].replace("\\", "/"))
             + r"\..*?\.?"
             + ext.replace(".", "")
         )
         for f in all_files:
-            if re.search(pattern, f):
+            if re.search(pattern, f.replace("\\", "/")):
                 subfile = f
                 break
         if subfile:

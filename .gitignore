@@ -4,7 +4,8 @@ venv/
 .venv/
 *.mp4
 tests/test_outputs/*
-!tests/test_inputs/manifesto.mp4
+!tests/test_inputs/metallica.mp4
+vosk models/
 *.pyc
 __pycache__
 build
