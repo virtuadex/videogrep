@@ -1,7 +1,8 @@
 import argparse
 import logging
 from tqdm import tqdm
-from . import get_ngrams, sphinx, videogrep, __version__
+from . import sphinx, videogrep, __version__
+from .search import get_ngrams
 
 # Initialize logger
 logging.basicConfig(level=logging.INFO, format='%(message)s')

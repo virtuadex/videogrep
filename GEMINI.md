@@ -7,6 +7,7 @@ This document provides essential context for Gemini to understand and work with 
 **Videogrep** is a command-line tool designed to search through dialog in video and audio files and automatically generate "supercuts" (compilations of clips) based on matching search queries. It functions like `grep`, but for time-based media.
 
 ### Key Features
+
 - **Regex Search:** Search for phrases or patterns using regular expressions in subtitle tracks or transcriptions.
 - **Transcription Support:** Automatically transcribe media using **OpenAI Whisper** (via `faster-whisper`), or **Pocketsphinx**.
 - **Multiple Search Types:**
@@ -17,6 +18,7 @@ This document provides essential context for Gemini to understand and work with 
 - **Automation:** Includes `auto_videogrep.py` for a seamless "transcribe then search" workflow.
 
 ### Core Technologies
+
 - **Language:** Python 3.10+
 - **Media Engine:** [MoviePy 2.x](https://zulko.github.io/moviepy/) (utilizes FFmpeg and NumPy 2.0+).
 - **Transcription:** OpenAI Whisper (optimized via `faster-whisper` for high performance).
@@ -42,6 +44,7 @@ This document provides essential context for Gemini to understand and work with 
 ## Building and Running
 
 ### Setup
+
 Ensure **FFmpeg** is installed and available in your system PATH.
 
 ```bash
@@ -53,6 +56,7 @@ poetry install --extras "full"
 ```
 
 ### Running the CLI
+
 ```bash
 # Basic search
 poetry run videogrep --input video.mp4 --search "phrase"
@@ -62,6 +66,7 @@ python auto_videogrep.py video.mp4 "search query" --model large-v3
 ```
 
 ### Testing
+
 ```bash
 # Run the test suite
 poetry run pytest
@@ -71,7 +76,7 @@ poetry run pytest
 
 ## Development Conventions
 
-- **Subtitles Mapping:** `videogrep` expects subtitle/transcript files to have the *exact same name* as the media file (e.g., `video.mp4` and `video.srt`).
+- **Subtitles Mapping:** `videogrep` expects subtitle/transcript files to have the _exact same name_ as the media file (e.g., `video.mp4` and `video.srt`).
 - **Padding:** For `fragment` and `mash` searches, a default padding of `0.3s` is applied to ensure natural-sounding cuts.
 - **Memory Management:** For large supercuts, `create_supercut_in_batches` is used to prevent memory exhaustion and MoviePy crashes by processing clips in groups.
 - **Logging:** All user-facing output should be handled through the `logging` module (INFO level for progress, ERROR for issues).
@@ -81,14 +86,16 @@ poetry run pytest
 ---
 
 ## Current Roadmap
-- [ ] **Semantic Search:** Implement vector embeddings to search by concept rather than just keywords.
-- [ ] **Speaker Diarization:** Identify and filter search results by specific speakers.
-- [ ] **Dynamic Transitions:** Support for cross-fades between clips.
-- [ ] **Embedded Subtitles:** Option to burn-in subtitles directly onto the video.
-- [ ] **Visual Progress Bars:** `tqdm` support for transcription and rendering.
+
+- [ ] **Semantic Search:** Implement vector embeddings (e.g. `sentence-transformers`) to search by concept rather than just keywords.
+- [ ] **Speaker Diarization:** Identify and filter search results by specific speakers (using `pyannote` or similar).
+- [ ] **Dynamic Transitions:** Support for cross-fades between clips to reduce choppiness.
+- [ ] **Embedded Subtitles:** Option to burn-in subtitles directly onto the video clips.
+- [ ] **Visual Progress Bars:** Enhanced `tqdm` support for transcription, rendering, and downloader progress (yt-dlp integration).
+- [ ] **Multi-Model Support:** Add support for OpenAI's official API and Apple Silicon optimized models like `mlx-whisper`.
 - [ ] **Translation Support:** Generate English supercuts from foreign language audio.
 - [ ] **Web Application Implementation**
-  - **Backend:** FastAPI (Python) - *Asynchronous processing for heavy transcodes.*
-  - **Frontend:** React (Vite) + Framer Motion + TailwindCSS - *Premium, animated UI._
+  - **Backend:** FastAPI (Python) - _Asynchronous processing for heavy transcodes._
+  - **Frontend:** React (Vite) + Framer Motion + TailwindCSS - _Premium, animated UI._
   - **Storage:** Local high-speed storage optimization (D: Drive models).
 - [ ] **Interactive CLI/GUI Improvements**

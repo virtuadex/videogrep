@@ -9,6 +9,11 @@ import sys
 import videogrep
 from videogrep import parse_transcript, create_supercut_in_batches, transcribe
 
+try:
+    from .utils import merge_clips
+except (ImportError, ValueError):
+    from utils import merge_clips
+
 # the min duration of silences to remove
 min_duration = 1.0
 
@@ -30,53 +35,14 @@ for filename in filenames:
     if not timestamps:
         continue
 
+    items = []
     if "words" in timestamps[0]:
-        words = []
         for sentence in timestamps:
-            words += sentence["words"]
-
-        clip = {"start": words[0]["start"], "end": words[0]["end"], "file": filename}
-
-        for word1, word2 in zip(words[:-2], words[1:]):
-            silence_start = word1["end"]
-            silence_end = word2["start"]
-            duration = silence_end - silence_start
-
-            if duration < min_duration:
-                clip["end"] = word2["end"]
-
-            elif duration >= min_duration:
-                clip["end"] = word1["end"]
-                clips.append(clip)
-                clip = {"start": word2["start"], "end": word2["end"], "file": filename}
-        
-        # Add the last clip
-        clips.append(clip)
-
+            items += sentence["words"]
     else:
-        clip = {
-            "start": timestamps[0]["start"],
-            "end": timestamps[0]["end"],
-            "file": filename,
-        }
-        for sentence1, sentence2 in zip(timestamps[:-2], timestamps[1:]):
-            silence_start = sentence1["end"]
-            silence_end = sentence2["start"]
-            duration = silence_end - silence_start
-            if duration < min_duration:
-                clip["end"] = sentence2["end"]
+        items = timestamps
 
-            elif duration >= min_duration:
-                clip["end"] = sentence1["end"]
-                clips.append(clip)
-                clip = {
-                    "start": sentence2["start"],
-                    "end": sentence2["end"],
-                    "file": filename,
-                }
-        
-        # Add the last clip
-        clips.append(clip)
+    clips += merge_clips(items, filename, min_duration)
 
 
 if clips:

@@ -4,38 +4,46 @@ from glob import glob
 import videogrep.modules.youtube
 
 
-def auto_youtube_supercut(query, max_videos=1, lang="en"):
+def auto_youtube_supercut(search_query, url=None, max_videos=1, lang="en", padding=0.5, output="supercut.mp4"):
     """
-    Search youtube for a query, download videos with yt-dlp,
+    Search youtube for a query or use a direct URL, download videos with yt-dlp,
     and then makes a supercut with that query
     """
+
+    if url:
+        # If a URL is provided, we use it directly
+        prefix = "yt_download"
+    else:
+        # Otherwise search for the query
+        url = "https://www.youtube.com/results?search_query=" + search_query
+        prefix = "".join([c if c.isalnum() else "_" for c in search_query])
 
     # Download video using the new module
     try:
         videogrep.modules.youtube.download_video(
-            "https://www.youtube.com/results?search_query=" + query,
-            output_template=query + "%(autonumber)s.%(ext)s"
+            url,
+            output_template=prefix + "%(autonumber)s.%(ext)s"
         )
     except Exception as e:
         print(f"Error downloading videos: {e}")
         return
 
     # grab the videos we just downloaded
-    files = glob(query + "*.mp4")
+    files = glob(prefix + "*.mp4")
+
+    if not files:
+        print("No videos downloaded.")
+        return
 
     # ensure transcripts exist for all downloaded files
     for f in files:
         if not videogrep.find_transcript(f):
             print(f"Transcript not found for {f}. Transcribing with Whisper ({lang})...")
-            # Passing language to Whisper
-            # We don't have a direct 'language' param in videogrep.transcribe.transcribe 
-            # based on previous file views, but we can assume Whisper auto-detects 
-            # or we can wait for future updates to that API.
-            # For now, we'll keep it simple.
-            transcribe.transcribe(f, method="whisper")
+            transcribe.transcribe(f, method="whisper", language=lang)
 
     # run videogrep
-    videogrep.videogrep(files, query, search_type="fragment")
+    print(f"Creating supercut for query: {search_query} (padding: {padding}s)")
+    videogrep.videogrep(files, search_query, search_type="fragment", padding=padding, output=output)
 
 
 if __name__ == "__main__":
@@ -46,6 +54,7 @@ if __name__ == "__main__":
     )
 
     parser.add_argument("--search", "-s", dest="search", help="search term")
+    parser.add_argument("--url", "-u", dest="url", help="direct youtube url (optional)")
 
     parser.add_argument(
         "--max",
@@ -64,10 +73,29 @@ if __name__ == "__main__":
         help="language code (e.g. en, pt)",
     )
 
+    parser.add_argument(
+        "--padding",
+        "-p",
+        dest="padding",
+        type=float,
+        default=0.5,
+        help="padding in seconds around each clip (default: 0.5)",
+    )
+
+    parser.add_argument(
+        "--output",
+        "-o",
+        dest="output",
+        default="youtube_supercut.mp4",
+        help="output filename (default: youtube_supercut.mp4)",
+    )
+
     args = parser.parse_args()
 
-    if not args.search:
-        print("Error: --search is required")
+    if not args.search and not args.url:
+        print("Error: Either --search or --url is required")
         parser.print_help()
     else:
-        auto_youtube_supercut(args.search, args.max_videos, args.lang)
+        # If only URL is provided, use a default search term or ask for one
+        query = args.search if args.search else "." # "." matches everything in regex
+        auto_youtube_supercut(query, args.url, args.max_videos, args.lang, args.padding, args.output)

@@ -23,48 +23,55 @@ def secs_to_timestamp(secs: float) -> str:
 
 def parse_cued(data: List[str]) -> List[dict]:
     out = []
-    pat = r"<(\d\d:\d\d:\d\d(\.\d+)?)>"
-
-    for lines in data:
-        meta, content = lines
-        start, end = meta.split(" --> ")
-        end = end.split(" ")[0]
-        start = timestamp_to_secs(start)
-        end = timestamp_to_secs(end)
-        text = BeautifulSoup(content, "html.parser").text
-        words = text.split(" ")
-        sentence = {"content": "", "words": []}
-
-        for word in words:
-            item = {}
-            item["start"] = start
-            item["end"] = end
-            word_parts = re.split(pat, word)
-            item["word"] = word_parts[0]
-
-            if len(word_parts) > 1:
-                item["end"] = timestamp_to_secs(word_parts[1])
-
-            sentence["words"].append(item)
-            start = item["end"]
-
-        sentence["content"] = " ".join([w["word"] for w in sentence["words"]])
-        out.append(sentence)
-
-    for index, sentence in enumerate(out):
-        if index == 0:
-            sentence["start"] = sentence["words"][0]["start"]
-            sentence["end"] = sentence["words"][-1]["end"]
-            continue
-
-        first_word = sentence["words"][0]
-        last_word = out[index - 1]["words"][-1]
-
-        if last_word["end"] > first_word["start"]:
-            last_word["end"] = first_word["start"]
-
-        sentence["start"] = sentence["words"][0]["start"]
-        sentence["end"] = sentence["words"][-1]["end"]
+    # regex for timestamp tags: <00:00:00.000>
+    timestamp_pat = r"<(\d\d:\d\d:\d\d(?:\.\d+)?)>"
+    
+    for meta, content in data:
+        start_match, end_match = meta.split(" --> ")
+        seg_start = timestamp_to_secs(start_match)
+        # Remove any extra info after the end timestamp
+        seg_end = timestamp_to_secs(end_match.split(" ")[0])
+        
+        # Strip other tags like <c> or </c>
+        clean_content = re.sub(r"<(?!/?\d\d:\d\d:\d\d)/?[^>]+>", "", content)
+        
+        # Split by timestamp tags, keeping the tags in the result
+        parts = re.split(timestamp_pat, clean_content)
+        
+        sentence = {"content": "", "words": [], "start": seg_start, "end": seg_end}
+        
+        current_time = seg_start
+        
+        # re.split with one capturing group returns [text, tag, text, tag, ...]
+        for i in range(0, len(parts), 2):
+            text = parts[i].strip()
+            if text:
+                # This text belongs to the previous time or the segment start
+                # We'll assign it the current_time as start
+                # If there's a next timestamp, that's the end. 
+                # Otherwise seg_end is the end.
+                next_time = seg_end
+                if i + 1 < len(parts):
+                    next_time = timestamp_to_secs(parts[i+1])
+                
+                # Split text into words if multiple
+                sub_words = text.split()
+                for j, sw in enumerate(sub_words):
+                    # For sub-words, we don't know the exact timing, so we'll just distribute
+                    # them or just keep them together. For better results, let's just 
+                    # create one entry per split text for now if it's meant to be one word.
+                    sentence["words"].append({
+                        "word": sw,
+                        "start": current_time,
+                        "end": next_time
+                    })
+            
+            if i + 1 < len(parts):
+                current_time = timestamp_to_secs(parts[i+1])
+                
+        if sentence["words"]:
+            sentence["content"] = " ".join([w["word"] for w in sentence["words"]])
+            out.append(sentence)
 
     return out
 

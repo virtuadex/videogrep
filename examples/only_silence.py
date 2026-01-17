@@ -2,6 +2,11 @@ import sys
 import videogrep
 from videogrep import parse_transcript, create_supercut, transcribe
 
+try:
+    from .utils import calculate_silences
+except (ImportError, ValueError):
+    from utils import calculate_silences
+
 # the min and max duration of silences to extract
 min_duration = 0.5
 max_duration = 1.0
@@ -24,28 +29,12 @@ for filename in filenames:
         transcribe.transcribe(filename, method="whisper")
 
     timestamps = parse_transcript(filename)
+    if not timestamps:
+        continue
 
-    # this uses the words, if available
-    words = []
-    for sentence in timestamps:
-        if 'words' in sentence:
-            words += sentence['words']
-
-    if not words:
-        print(f"Warning: No word-level timestamps found for {filename}. Using sentences instead.")
-        for sentence1, sentence2 in zip(timestamps[:-2], timestamps[1:]):
-            start = sentence1['end']
-            end = sentence2['start'] - adjuster
-            duration = end - start
-            if duration > min_duration and duration < max_duration:
-               silences.append({'start': start, 'end': end, 'file': filename})
-    else:
-        for word1, word2 in zip(words[:-2], words[1:]):
-            start = word1['end']
-            end = word2['start'] - adjuster
-            duration = end - start
-            if duration > min_duration and duration < max_duration:
-                silences.append({'start': start, 'end': end, 'file': filename})
+    silences += calculate_silences(
+        timestamps, filename, min_duration, max_duration, adjuster
+    )
 
 if silences:
     create_supercut(silences, 'silences.mp4')
