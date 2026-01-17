@@ -148,7 +148,7 @@ def render(segments: List[dict], outputfile: str):
     """
     Render a list of segments to a WebVTT file
     
-    :param segments: List of segments as returned by videogrep.search
+    :param segments: List of segments as returned by voxgrep.search
     :param outputfile: Filename for the WebVTT output
     """
 

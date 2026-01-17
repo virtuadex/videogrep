@@ -18,9 +18,9 @@ install-python:
 # Run the full setup
 install: install-python install-gui
 
-# Run Videogrep CLI
+# Run VoxGrep CLI
 search:
-	poetry run videogrep
+	poetry run voxgrep
 
 # Clean build artifacts
 clean:

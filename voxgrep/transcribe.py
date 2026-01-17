@@ -1,16 +1,13 @@
+import os
+import json
+from typing import List, Optional
+from tqdm import tqdm
+
 try:
     from faster_whisper import WhisperModel
     WHISPER_AVAILABLE = True
 except ImportError:
     WHISPER_AVAILABLE = False
-
-import os
-import json
-import logging
-from typing import List, Optional
-from tqdm import tqdm
-
-logger = logging.getLogger(__name__)
 
 try:
     import mlx_whisper
@@ -18,16 +15,38 @@ try:
 except ImportError:
     MLX_AVAILABLE = False
 
-MAX_CHARS = 36
+from .config import (
+    DEFAULT_WHISPER_MODEL,
+    DEFAULT_MLX_MODEL,
+    DEFAULT_DEVICE,
+    DEFAULT_COMPUTE_TYPE
+)
+from .utils import setup_logger
+from .exceptions import (
+    TranscriptionModelNotAvailableError,
+    TranscriptionFailedError,
+    FileNotFoundError as VoxGrepFileNotFoundError
+)
+
+logger = setup_logger(__name__)
 
 
-def transcribe_whisper(videofile: str, model_name: str = "large-v3", prompt: Optional[str] = None, language: Optional[str] = None, device: str = "cpu", compute_type: str = "int8") -> List[dict]:
+def transcribe_whisper(
+    videofile: str, 
+    model_name: str = DEFAULT_WHISPER_MODEL, 
+    prompt: Optional[str] = None, 
+    language: Optional[str] = None, 
+    device: str = DEFAULT_DEVICE, 
+    compute_type: str = DEFAULT_COMPUTE_TYPE
+) -> List[dict]:
     """
     Transcribes a video file using faster-whisper (CTranslate2)
     With word-level timestamps enabled.
     """
     if not WHISPER_AVAILABLE:
-        raise ImportError("faster-whisper is not installed. Install with 'pip install faster-whisper'")
+        raise TranscriptionModelNotAvailableError(
+            "faster-whisper is not installed. Install with 'pip install faster-whisper'"
+        )
 
     logger.info(f"Transcribing {videofile} using faster-whisper ({model_name} model) on {device}")
     
@@ -38,9 +57,12 @@ def transcribe_whisper(videofile: str, model_name: str = "large-v3", prompt: Opt
         logger.error(f"Could not load model {model_name} on {device}: {e}")
         if device == "cuda":
             logger.info("Falling back to CPU...")
-            model = WhisperModel(model_name, device="cpu", compute_type="int8")
+            try:
+                model = WhisperModel(model_name, device="cpu", compute_type="int8")
+            except Exception as e2:
+                raise TranscriptionFailedError(f"Fallback to CPU failed: {e2}") from e2
         else:
-            raise e
+            raise TranscriptionFailedError(f"Failed to load Whisper model: {e}") from e
     
     # Transcribe
     try:
@@ -55,12 +77,11 @@ def transcribe_whisper(videofile: str, model_name: str = "large-v3", prompt: Opt
         logger.info(f"Transcription started. Detected language: {info.language}")
         
         out = []
-        pbar = tqdm(total=round(info.duration), unit="sec", desc="Transcribing")
-        last_pos = 0
+        pbar = tqdm(total=info.duration, unit="sec", desc="Transcribing", bar_format="{l_bar}{bar}| {n:.2f}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]")
+        
         for segment in segments_generator:
             # segment has .text, .start, .end, .words (list of Word objects)
-            pbar.update(round(segment.end - last_pos))
-            last_pos = segment.end
+            pbar.update(segment.end - pbar.n)
             
             content = segment.text.strip()
             start_sec = segment.start
@@ -84,7 +105,6 @@ def transcribe_whisper(videofile: str, model_name: str = "large-v3", prompt: Opt
             }
             
             out.append(item)
-            # print(f"DEBUG: Processed segment: {content}")
         
         pbar.close()
         logger.info(f"Processed {len(out)} segments.")
@@ -96,18 +116,25 @@ def transcribe_whisper(videofile: str, model_name: str = "large-v3", prompt: Opt
         
     except Exception as e:
         logger.error(f"Error during transcription: {e}")
-        raise e
+        raise TranscriptionFailedError(f"Whisper transcription failed: {e}") from e
         
     return out
 
 
-def transcribe_mlx(videofile: str, model_name: str = "mlx-community/whisper-large-v3-mlx", language: Optional[str] = None) -> List[dict]:
+def transcribe_mlx(
+    videofile: str, 
+    model_name: str = DEFAULT_MLX_MODEL, 
+    language: Optional[str] = None, 
+    prompt: Optional[str] = None
+) -> List[dict]:
     """
     Transcribes a video file using mlx-whisper (Apple Silicon GPU)
     With word-level timestamps enabled.
     """
     if not MLX_AVAILABLE:
-        raise ImportError("mlx-whisper is not installed. Install with 'pip install mlx-whisper'")
+        raise TranscriptionModelNotAvailableError(
+            "mlx-whisper is not installed. Install with 'pip install mlx-whisper'"
+        )
 
     logger.info(f"Transcribing {videofile} using mlx-whisper ({model_name})")
 
@@ -117,7 +144,8 @@ def transcribe_mlx(videofile: str, model_name: str = "mlx-community/whisper-larg
             videofile,
             path_or_hf_repo=model_name,
             word_timestamps=True,
-            language=language
+            language=language,
+            initial_prompt=prompt
         )
         
         out = []
@@ -130,12 +158,11 @@ def transcribe_mlx(videofile: str, model_name: str = "mlx-community/whisper-larg
             w_list = []
             if "words" in segment:
                 for w in segment["words"]:
-                    # mlx-whisper (like openai-whisper) returns words as dicts
                     w_list.append({
                         "word": w["word"].strip(),
                         "start": w["start"],
                         "end": w["end"],
-                        "conf": w.get("probability", 1.0) # mlx might use probability
+                        "conf": w.get("probability", 1.0)
                     })
             
             item = {
@@ -151,62 +178,54 @@ def transcribe_mlx(videofile: str, model_name: str = "mlx-community/whisper-larg
 
     except Exception as e:
         logger.error(f"Error during mlx transcription: {e}")
-        raise e
+        raise TranscriptionFailedError(f"MLX transcription failed: {e}") from e
 
 
-def transcribe(videofile: str, model_name: str = "large-v3", method: str = "whisper", prompt: Optional[str] = None, language: Optional[str] = None, device: str = "cpu", compute_type: str = "int8") -> List[dict]:
+def transcribe(
+    videofile: str, 
+    model_name: Optional[str] = None, 
+    prompt: Optional[str] = None, 
+    language: Optional[str] = None, 
+    device: str = DEFAULT_DEVICE, 
+    compute_type: str = DEFAULT_COMPUTE_TYPE
+) -> List[dict]:
     """
-    Transcribes a video file using Whisper.
+    Transcribes a video file using Whisper, handling caching and backend selection.
     """
+    if not os.path.exists(videofile):
+        raise VoxGrepFileNotFoundError(f"Could not find file {videofile}")
+
+    # Transcript file is based on the input filename
     transcript_file = os.path.splitext(videofile)[0] + ".json"
 
     if os.path.exists(transcript_file):
-        with open(transcript_file, "r") as infile:
+        with open(transcript_file, "r", encoding="utf-8") as infile:
             try:
                 data = json.load(infile)
+                logger.info(f"Using existing transcript file: {transcript_file}")
                 return data
             except json.JSONDecodeError:
-                pass
+                logger.warning(f"Existing transcript file {transcript_file} is corrupt.")
 
-    if not os.path.exists(videofile):
-        logger.error(f"Could not find file {videofile}")
-        return []
+    out = []
     
-    # Check if MLX is requested
+    # Check backend selection
     if device == "mlx":
-        if not MLX_AVAILABLE:
-             logger.error("mlx-whisper is not available. Please install it with 'pip install mlx-whisper'")
-             return []
-        # Use default MLX model if generic "large-v3" is passed, otherwise use what user provided
-        if model_name == "large-v3" or model_name is None:
-             _model = "mlx-community/whisper-large-v3-mlx"
-        else:
-             _model = model_name
-             
-        try:
-             out = transcribe_mlx(videofile, _model, language=language)
-             # Save logic is duplicated below, maybe return out here and let it fall through?
-             # But "out" variable scope needs to be handled.
-        except Exception as e:
-             logger.error(f"MLX transcription failed: {e}")
-             return []
+        _model = model_name or DEFAULT_MLX_MODEL
+        out = transcribe_mlx(videofile, _model, language=language, prompt=prompt)
     else:
-        if not WHISPER_AVAILABLE:
-            logger.error("faster-whisper is not available. Please install it with 'pip install faster-whisper'")
-            return []
+        _model = model_name or DEFAULT_WHISPER_MODEL
+        out = transcribe_whisper(
+            videofile, 
+            _model, 
+            prompt=prompt, 
+            language=language, 
+            device=device, 
+            compute_type=compute_type
+        )
 
-        # Default model if None provided
-        _model = model_name if model_name else "large-v3"
-        
-        try:
-            out = transcribe_whisper(videofile, _model, prompt=prompt, language=language, device=device, compute_type=compute_type)
-        except Exception as e:
-            logger.error(f"Whisper transcription failed: {e}")
-            return []
-
-
-    if len(out) == 0:
-        logger.warning(f"No words found in {videofile}")
+    if not out:
+        logger.warning(f"No speech detected in {videofile}")
         return []
 
     logger.info(f"Saving transcript to {transcript_file}")

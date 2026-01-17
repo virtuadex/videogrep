@@ -1,7 +1,7 @@
 import sys
 import os
-import videogrep
-from videogrep import transcribe
+import voxgrep
+from voxgrep import transcribe
 from collections import Counter
 import random
 
@@ -14,12 +14,12 @@ def auto_supercut(vidfile, total_words=3):
     """automatically creates a supercut from a video by selecting three random words"""
 
     # ensure transcript exists
-    if not videogrep.find_transcript(vidfile):
+    if not voxgrep.find_transcript(vidfile):
         print(f"Transcript not found for {vidfile}. Transcribing with Whisper...")
         transcribe.transcribe(vidfile, method="whisper")
 
     # grab all the words from the transcript
-    unigrams = videogrep.get_ngrams(vidfile)
+    unigrams = voxgrep.get_ngrams(vidfile)
 
     # remove stop words
     unigrams = [w for w in unigrams if w[0] not in STOPWORDS]
@@ -40,7 +40,7 @@ def auto_supercut(vidfile, total_words=3):
     query = "|".join(words)
 
     # create the video
-    videogrep.videogrep(vidfile, query, search_type="fragment", output="auto_supercut.mp4")
+    voxgrep.voxgrep(vidfile, query, search_type="fragment", output="auto_supercut.mp4")
 
 
 if __name__ == "__main__":

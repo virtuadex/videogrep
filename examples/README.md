@@ -1,6 +1,6 @@
-# Videogrep Examples
+# VoxGrep Examples
 
-This directory contains several scripts demonstrating how to use `videogrep` as a library for more advanced and automated workflows.
+This directory contains several scripts demonstrating how to use `voxgrep` as a library for more advanced and automated workflows.
 
 ## Prerequisites
 

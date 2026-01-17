@@ -6,8 +6,8 @@ to run: python3 remove_silences.py SOMEVIDEO.mp4
 """
 
 import sys
-import videogrep
-from videogrep import parse_transcript, create_supercut_in_batches, transcribe
+import voxgrep
+from voxgrep import parse_transcript, create_supercut_in_batches, transcribe
 
 try:
     from .utils import merge_clips
@@ -27,7 +27,7 @@ clips = []
 
 for filename in filenames:
     # ensure transcript exists
-    if not videogrep.find_transcript(filename):
+    if not voxgrep.find_transcript(filename):
         print(f"Transcript not found for {filename}. Transcribing with Whisper...")
         transcribe.transcribe(filename, method="whisper")
 

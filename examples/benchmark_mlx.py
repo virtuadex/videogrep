@@ -2,7 +2,7 @@ import time
 import sys
 import os
 import shutil
-from videogrep import transcribe
+from voxgrep import transcribe
 import logging
 
 # Configure logging to show info

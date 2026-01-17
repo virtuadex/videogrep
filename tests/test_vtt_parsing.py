@@ -1,5 +1,5 @@
 import pytest
-from videogrep import vtt
+from voxgrep import vtt
 
 def test_parse_cued_vtt_with_word_timestamps():
     vtt_content = """WEBVTT

@@ -1,10 +1,10 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from videogrep import transcribe
+from voxgrep import transcribe
 import os
 import json
 
-@patch('videogrep.transcribe.WhisperModel')
+@patch('voxgrep.transcribe.WhisperModel')
 def test_transcribe_whisper_mock(mock_whisper, tmp_path):
     # Mock the WhisperModel instance and its transcribe method
     mock_model = MagicMock()
@@ -42,7 +42,7 @@ def test_transcribe_whisper_mock(mock_whisper, tmp_path):
         data = json.load(f)
         assert data[0]["content"] == "Hello world"
 
-@patch('videogrep.transcribe.mlx_whisper')
+@patch('voxgrep.transcribe.mlx_whisper')
 def test_transcribe_mlx_mock(mock_mlx, tmp_path):
     # Mock result from mlx_whisper.transcribe
     mock_mlx.transcribe.return_value = {
@@ -64,7 +64,7 @@ def test_transcribe_mlx_mock(mock_mlx, tmp_path):
     dummy_video.write_text("dummy")
     
     # We need to force MLX_AVAILABLE to True for this test if it defaulted to False
-    with patch('videogrep.transcribe.MLX_AVAILABLE', True):
+    with patch('voxgrep.transcribe.MLX_AVAILABLE', True):
         result = transcribe.transcribe(str(dummy_video), device="mlx")
     
     mock_mlx.transcribe.assert_called_once()

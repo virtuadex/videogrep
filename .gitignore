@@ -14,3 +14,5 @@ dist
 *.egg-info
 .tox
 .python-version
+voxgrep_library.db
+*.log

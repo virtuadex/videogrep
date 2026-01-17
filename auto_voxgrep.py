@@ -15,14 +15,14 @@ if not logger.handlers:
     logger.addHandler(handler)
     logger.setLevel(logging.INFO)
 
-import videogrep
-from videogrep.modules import youtube
-from videogrep import transcribe
+import voxgrep
+from voxgrep.modules import youtube
+from voxgrep import transcribe
 
 
 def run_whisper(video_path, model="large-v3", language=None, prompt=None, device="cpu", compute_type="int8"):
     """
-    Runs faster-whisper (via videogrep.transcribe) on the video file to generate a JSON transcript.
+    Runs faster-whisper (via voxgrep.transcribe) on the video file to generate a JSON transcript.
     """
     logger.info(f"[+] Transcribing '{video_path}' using faster-whisper/mlx (model: {model}) on {device}...")
     
@@ -49,13 +49,13 @@ def run_whisper(video_path, model="large-v3", language=None, prompt=None, device
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Auto-transcribe with Whisper and run Videogrep.")
+    parser = argparse.ArgumentParser(description="Auto-transcribe with Whisper and run VoxGrep.")
     parser.add_argument("video", help="Path to the video file or YouTube URL.")
     parser.add_argument("query", help="Search query (regex supported).")
     parser.add_argument("--model", default="large-v3", help="Whisper model size (medium, large, large-v3). Default: large-v3.")
     parser.add_argument("--language", help="Language code (e.g., pt, en). If omitted, Whisper auto-detects.")
     parser.add_argument("--prompt", help="Initial prompt to guide Whisper (useful for transcribing fillers like 'hmmm').")
-    parser.add_argument("--search-type", default="sentence", choices=["sentence", "fragment"], help="Videogrep search type. Default: sentence.")
+    parser.add_argument("--search-type", default="sentence", choices=["sentence", "fragment"], help="VoxGrep search type. Default: sentence.")
     parser.add_argument("--padding", type=float, default=0.0, help="Padding in seconds to add to the start/end of each clip. Default: 0.0.")
     parser.add_argument("--device", default="cpu", help="Device to use for transcription (cpu, cuda, mlx). Default: cpu.")
     parser.add_argument("--compute-type", default="int8", help="Compute type for transcription (int8, float16, int8_float16). Default: int8.")
@@ -88,7 +88,7 @@ def main():
         output_file = args.output
 
     # Check for existing Transcript
-    if not args.force_transcribe and videogrep.find_transcript(video_path):
+    if not args.force_transcribe and voxgrep.find_transcript(video_path):
         logger.info(f"[+] Found existing transcript file for: {video_path}")
         logger.info("[+] Skipping transcription (use --force-transcribe to override).")
     else:
@@ -106,10 +106,10 @@ def main():
             compute_type=args.compute_type
         )
         
-    # Run videogrep
-    logger.info(f"[+] Running videogrep for query: '{args.query}'...")
+    # Run voxgrep
+    logger.info(f"[+] Running voxgrep for query: '{args.query}'...")
     try:
-        videogrep.videogrep(
+        voxgrep.voxgrep(
             files=video_path,
             query=args.query,
             search_type=args.search_type,
@@ -120,7 +120,7 @@ def main():
         if not args.preview:
             logger.info(f"[+] Supercut created: {output_file}")
     except Exception as e:
-        logger.error(f"[-] Error running videogrep: {e}")
+        logger.error(f"[-] Error running voxgrep: {e}")
 
 
 if __name__ == "__main__":

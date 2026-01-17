@@ -1,10 +1,10 @@
 import unittest
 from unittest.mock import patch, MagicMock
-from videogrep.modules import youtube
+from voxgrep.modules import youtube
 
 class TestYoutubeModule(unittest.TestCase):
     
-    @patch('videogrep.modules.youtube.yt_dlp.YoutubeDL')
+    @patch('voxgrep.modules.youtube.yt_dlp.YoutubeDL')
     def test_download_video_success(self, mock_ydl):
         # Setup mock
         mock_instance = mock_ydl.return_value
@@ -19,7 +19,7 @@ class TestYoutubeModule(unittest.TestCase):
         self.assertEqual(filename, 'Test Video.mp4')
         mock_instance.extract_info.assert_called_once()
         
-    @patch('videogrep.modules.youtube.yt_dlp.YoutubeDL')
+    @patch('voxgrep.modules.youtube.yt_dlp.YoutubeDL')
     def test_download_video_failure(self, mock_ydl):
         # Setup mock to raise exception
         mock_instance = mock_ydl.return_value

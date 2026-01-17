@@ -1,7 +1,7 @@
-import videogrep
-from videogrep import transcribe
+import voxgrep
+from voxgrep import transcribe
 from glob import glob
-import videogrep.modules.youtube
+import voxgrep.modules.youtube
 
 
 def auto_youtube_supercut(search_query, url=None, max_videos=1, lang="en", padding=0.5, output="supercut.mp4"):
@@ -20,7 +20,7 @@ def auto_youtube_supercut(search_query, url=None, max_videos=1, lang="en", paddi
 
     # Download video using the new module
     try:
-        videogrep.modules.youtube.download_video(
+        voxgrep.modules.youtube.download_video(
             url,
             output_template=prefix + "%(autonumber)s.%(ext)s"
         )
@@ -37,13 +37,13 @@ def auto_youtube_supercut(search_query, url=None, max_videos=1, lang="en", paddi
 
     # ensure transcripts exist for all downloaded files
     for f in files:
-        if not videogrep.find_transcript(f):
+        if not voxgrep.find_transcript(f):
             print(f"Transcript not found for {f}. Transcribing with Whisper ({lang})...")
             transcribe.transcribe(f, method="whisper", language=lang)
 
-    # run videogrep
+    # run voxgrep
     print(f"Creating supercut for query: {search_query} (padding: {padding}s)")
-    videogrep.videogrep(files, search_query, search_type="fragment", padding=padding, output=output)
+    voxgrep.voxgrep(files, search_query, search_type="fragment", padding=padding, output=output)
 
 
 if __name__ == "__main__":

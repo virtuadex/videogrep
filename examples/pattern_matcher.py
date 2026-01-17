@@ -1,7 +1,7 @@
 import sys
 import argparse
-import videogrep
-from videogrep import transcribe
+import voxgrep
+from voxgrep import transcribe
 from spacy.matcher import Matcher
 
 try:
@@ -34,11 +34,11 @@ def main():
 
     for video in args.videos:
         # ensure transcript exists
-        if not videogrep.find_transcript(video):
+        if not voxgrep.find_transcript(video):
             print(f"Transcript not found for {video}. Transcribing with Whisper...")
             transcribe.transcribe(video, method="whisper")
 
-        transcript = videogrep.parse_transcript(video)
+        transcript = voxgrep.parse_transcript(video)
         if not transcript:
             continue
 
@@ -50,7 +50,7 @@ def main():
                 searches.append(span.text)
 
     if searches:
-        videogrep.videogrep(
+        voxgrep.voxgrep(
             args.videos, searches, search_type="fragment", output="pattern_matcher.mp4"
         )
     else:

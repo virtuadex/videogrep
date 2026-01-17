@@ -1,7 +1,7 @@
 import pytest
 import os
 from pathlib import Path
-from videogrep import exporter
+from voxgrep import exporter
 
 def test_get_file_type():
     assert exporter.get_file_type("test.mp4") == "video"

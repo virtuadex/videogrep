@@ -1,6 +1,6 @@
 import argparse
-import videogrep
-from videogrep import transcribe
+import voxgrep
+from voxgrep import transcribe
 
 try:
     from .utils import load_spacy_model
@@ -27,11 +27,11 @@ def main():
 
     for video in args.videos:
         # ensure transcript exists
-        if not videogrep.find_transcript(video):
+        if not voxgrep.find_transcript(video):
             print(f"Transcript not found for {video}. Transcribing with Whisper...")
             transcribe.transcribe(video, method="whisper")
 
-        transcript = videogrep.parse_transcript(video)
+        transcript = voxgrep.parse_transcript(video)
         if not transcript:
             continue
 
@@ -44,7 +44,7 @@ def main():
 
     if search_words:
         query = "|".join(search_words)
-        videogrep.videogrep(
+        voxgrep.voxgrep(
             args.videos, query, search_type="fragment", output=args.output
         )
     else:
