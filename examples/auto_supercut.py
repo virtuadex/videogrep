@@ -1,5 +1,4 @@
 import sys
-import os
 import voxgrep
 from voxgrep import transcribe
 from collections import Counter

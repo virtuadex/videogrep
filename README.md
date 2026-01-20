@@ -36,6 +36,7 @@ voxgrep --input movie.mp4 --search "hello world" --transcribe
 ## 📖 Documentation
 
 - 🚀 [**Getting Started**](docs/GETTING_STARTED.md) - Installation and basic setup.
+- 📦 [**Installation Guide**](docs/INSTALLATION.md) - Comprehensive installation methods and troubleshooting.
 - 📚 [**User Guide**](docs/USER_GUIDE.md) - Deep dive into features and troubleshooting.
 - 🏗️ [**Architecture**](docs/ARCHITECTURE.md) - How it works under the hood.
 - 🛠️ [**CLI Reference**](docs/CLI_REFERENCE.md) - Detailed command-line options.

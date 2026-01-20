@@ -1,7 +1,5 @@
-import pytest
 from unittest.mock import patch, MagicMock
 from voxgrep import transcribe
-import os
 import json
 
 @patch('voxgrep.transcribe.WhisperModel')

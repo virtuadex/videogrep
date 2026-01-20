@@ -1,4 +1,3 @@
-import sys
 import argparse
 import voxgrep
 from voxgrep import transcribe

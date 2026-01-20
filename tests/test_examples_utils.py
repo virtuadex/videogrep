@@ -1,4 +1,3 @@
-import pytest
 from examples.utils import calculate_silences, merge_clips
 
 def test_calculate_silences():

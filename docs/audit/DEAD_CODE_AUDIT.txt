@@ -1,0 +1,144 @@
+================================================================================
+VOXGREP DEAD CODE AUDIT REPORT
+================================================================================
+
+
+================================================================================
+UNUSED IMPORTS
+================================================================================
+
+📄 auto_voxgrep.py
+   Line 4: Unused import 'subprocess' from 'subprocess'
+   Line 7: Unused import 'Path' from 'pathlib.Path'
+
+📄 audit_dead_code.py
+   Line 12: Unused import 'sys' from 'sys'
+   Line 15: Unused import 'defaultdict' from 'collections.defaultdict'
+
+📄 tests/test_youtube.py
+   Line 2: Unused import 'MagicMock' from 'unittest.mock.MagicMock'
+
+📄 tests/test_exporter.py
+   Line 1: Unused import 'pytest' from 'pytest'
+   Line 2: Unused import 'os' from 'os'
+
+📄 tests/test_search.py
+   Line 2: Unused import 'os' from 'os'
+   Line 4: Unused import 'search_func' from 'voxgrep.search'
+
+📄 tests/test_transcribe.py
+   Line 1: Unused import 'pytest' from 'pytest'
+   Line 4: Unused import 'os' from 'os'
+
+📄 tests/test_vtt_parsing.py
+   Line 1: Unused import 'pytest' from 'pytest'
+
+📄 tests/test_search_semantic.py
+   Line 1: Unused import 'pytest' from 'pytest'
+   Line 4: Unused import 'os' from 'os'
+
+📄 tests/test_videogrep.py
+   Line 2: Unused import 're' from 're'
+   Line 6: Unused import 'glob' from 'glob'
+
+📄 tests/test_examples_utils.py
+   Line 1: Unused import 'pytest' from 'pytest'
+
+📄 voxgrep/vtt.py
+   Line 3: Unused import 'BeautifulSoup' from 'bs4.BeautifulSoup'
+
+📄 voxgrep/__init__.py
+   Line 4: Unused import 'vtt' from 'vtt'
+   Line 4: Unused import 'srt' from 'srt'
+   Line 4: Unused import 'sphinx' from 'sphinx'
+   Line 4: Unused import 'fcpxml' from 'fcpxml'
+   Line 4: Unused import 'config' from 'config'
+   Line 4: Unused import 'exceptions' from 'exceptions'
+   Line 4: Unused import 'utils' from 'utils'
+   Line 7: Unused import 'voxgrep' from 'voxgrep.voxgrep'
+   Line 7: Unused import 'remove_overlaps' from 'voxgrep.remove_overlaps'
+   Line 7: Unused import 'pad_and_sync' from 'voxgrep.pad_and_sync'
+   Line 14: Unused import 'search' from 'search_engine.search'
+   Line 14: Unused import 'find_transcript' from 'search_engine.find_transcript'
+   Line 14: Unused import 'parse_transcript' from 'search_engine.parse_transcript'
+   Line 14: Unused import 'get_ngrams' from 'search_engine.get_ngrams'
+   Line 14: Unused import 'SUB_EXTS' from 'search_engine.SUB_EXTS'
+   Line 23: Unused import 'create_supercut' from 'exporter.create_supercut'
+   Line 23: Unused import 'create_supercut_in_batches' from 'exporter.create_supercut_in_batches'
+   Line 23: Unused import 'export_individual_clips' from 'exporter.export_individual_clips'
+   Line 23: Unused import 'export_m3u' from 'exporter.export_m3u'
+   Line 23: Unused import 'export_mpv_edl' from 'exporter.export_mpv_edl'
+   Line 23: Unused import 'export_xml' from 'exporter.export_xml'
+   Line 23: Unused import 'cleanup_log_files' from 'exporter.cleanup_log_files'
+   Line 23: Unused import 'BATCH_SIZE' from 'exporter.BATCH_SIZE'
+   Line 35: Unused import 'SUBTITLE_EXTENSIONS' from 'config.SUBTITLE_EXTENSIONS'
+   Line 35: Unused import 'VIDEO_EXTENSIONS' from 'config.VIDEO_EXTENSIONS'
+   Line 35: Unused import 'AUDIO_EXTENSIONS' from 'config.AUDIO_EXTENSIONS'
+   Line 35: Unused import 'MEDIA_EXTENSIONS' from 'config.MEDIA_EXTENSIONS'
+   Line 42: Unused import 'VoxGrepError' from 'exceptions.VoxGrepError'
+   Line 42: Unused import 'TranscriptNotFoundError' from 'exceptions.TranscriptNotFoundError'
+   Line 42: Unused import 'SearchError' from 'exceptions.SearchError'
+   Line 42: Unused import 'NoResultsFoundError' from 'exceptions.NoResultsFoundError'
+   Line 49: Unused import 'is_video_file' from 'utils.is_video_file'
+   Line 49: Unused import 'is_audio_file' from 'utils.is_audio_file'
+   Line 49: Unused import 'is_media_file' from 'utils.is_media_file'
+   Line 49: Unused import 'validate_media_file' from 'utils.validate_media_file'
+   Line 49: Unused import 'get_media_type' from 'utils.get_media_type'
+
+📄 voxgrep/prefs.py
+   Line 2: Unused import 'os' from 'os'
+
+📄 voxgrep/utils.py
+   Line 6: Unused import 'os' from 'os'
+   Line 9: Unused import 'Optional' from 'typing.Optional'
+
+📄 voxgrep/server/__init__.py
+   Line 6: Unused import 'app' from 'app.app'
+   Line 7: Unused import 'engine' from 'db.engine'
+   Line 7: Unused import 'create_db_and_tables' from 'db.create_db_and_tables'
+   Line 7: Unused import 'get_session' from 'db.get_session'
+   Line 8: Unused import 'Video' from 'models.Video'
+   Line 8: Unused import 'SearchResult' from 'models.SearchResult'
+   Line 8: Unused import 'Embedding' from 'models.Embedding'
+   Line 8: Unused import 'Speaker' from 'models.Speaker'
+   Line 8: Unused import 'SpeakerSegment' from 'models.SpeakerSegment'
+   Line 8: Unused import 'ExportJob' from 'models.ExportJob'
+   Line 8: Unused import 'Composition' from 'models.Composition'
+   Line 8: Unused import 'CompositionClip' from 'models.CompositionClip'
+   Line 8: Unused import 'VectorStats' from 'models.VectorStats'
+   Line 8: Unused import 'ExportProgress' from 'models.ExportProgress'
+   Line 8: Unused import 'TransitionType' from 'models.TransitionType'
+   Line 8: Unused import 'ExportStatus' from 'models.ExportStatus'
+   Line 13: Unused import 'get_vector_store' from 'vector_store.get_vector_store'
+   Line 13: Unused import 'VectorStore' from 'vector_store.VectorStore'
+   Line 13: Unused import 'EmbeddingModel' from 'vector_store.EmbeddingModel'
+   Line 14: Unused import 'get_model_manager' from 'multi_model.get_model_manager'
+   Line 14: Unused import 'ModelManager' from 'multi_model.ModelManager'
+   Line 14: Unused import 'TranscriptionBackend' from 'multi_model.TranscriptionBackend'
+   Line 15: Unused import 'concatenate_with_transitions' from 'transitions.concatenate_with_transitions'
+   Line 15: Unused import 'concatenate_with_transitions_batched' from 'transitions.concatenate_with_transitions_batched'
+   Line 15: Unused import 'TransType' from 'transitions.TransitionType'
+   Line 20: Unused import 'SubtitleStyle' from 'subtitles.SubtitleStyle'
+   Line 20: Unused import 'burn_subtitles_on_segments' from 'subtitles.burn_subtitles_on_segments'
+   Line 20: Unused import 'PRESET_STYLES' from 'subtitles.PRESET_STYLES'
+
+📄 examples/pattern_matcher.py
+   Line 1: Unused import 'sys' from 'sys'
+
+📄 examples/auto_supercut.py
+   Line 2: Unused import 'os' from 'os'
+
+
+================================================================================
+UNREACHABLE CODE & LOGIC ISSUES
+================================================================================
+
+✅ No unreachable code found!
+
+
+================================================================================
+SUMMARY
+================================================================================
+Total files analyzed: 45
+Unused imports: 87
+Unreachable code issues: 0

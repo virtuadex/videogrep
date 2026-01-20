@@ -1,0 +1,11 @@
+voxgrep/cli.py:388: expected an indented block after 'if' statement on line 387 at "if not search_args.preview:"
+tests/test_search.py:4: unused import 'search_func' (90% confidence, 1 line)
+voxgrep/server/app.py:17: unused import 'Query' (90% confidence, 1 line)
+voxgrep/server/app.py:34: unused import 'validate_media_file' (90% confidence, 1 line)
+voxgrep/server/app.py:609: unused import 'assign_speakers_to_transcript' (90% confidence, 1 line)
+voxgrep/server/multi_model.py:259: unused import 'openai' (90% confidence, 1 line)
+voxgrep/server/subtitles.py:213: unused variable 'include_transitions' (100% confidence, 1 line)
+voxgrep/vtt.py:3: unused import 'BeautifulSoup' (90% confidence, 1 line)
+voxgrep/search_engine.py:25: unused import 'TranscriptNotFoundError' (90% confidence, 5 lines)
+voxgrep/server/transitions.py:18: unused import 'CompositeAudioClip' (90% confidence, 5 lines)
+voxgrep/server/transitions.py:41: unused import 'CompositeAudioClip' (90% confidence, 5 lines)

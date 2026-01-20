@@ -40,6 +40,27 @@ Detailed documentation for the `voxgrep` command-line interface.
 | `--preview`    | `-pr` | Preview the supercut in `mpv`.               |
 | `--ngrams`     | `-n`  | List common words and phrases.               |
 
+## Diagnostics \u0026 Troubleshooting
+
+| Option      | Short | Description                                         |
+| :---------- | :---- | :-------------------------------------------------- |
+| `--doctor`  | -     | Run environment diagnostics to verify installation. |
+| `--version` | `-v`  | Show VoxGrep version number.                        |
+
+**Example:**
+
+```bash
+# Check your installation
+voxgrep --doctor
+
+# Sample output shows:
+# - Python version compatibility
+# - Core and optional dependencies
+# - System commands (FFmpeg, MPV)
+# - Environment type (Poetry, venv, etc.)
+# - Actionable recommendations for issues
+```
+
 ## Advanced Automation
 
 VoxGrep includes an automation script `auto_voxgrep.py` for a recursive "transcribe then search" workflow.

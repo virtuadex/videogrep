@@ -1,4 +1,3 @@
-import pytest
 from voxgrep import vtt
 
 def test_parse_cued_vtt_with_word_timestamps():

@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from voxgrep.modules import youtube
 
 class TestYoutubeModule(unittest.TestCase):

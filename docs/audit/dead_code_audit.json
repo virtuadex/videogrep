@@ -1,0 +1,706 @@
+[
+  {
+    "file": "/Users/dex/Documents/voxgrep/auto_voxgrep.py",
+    "unreachable_code": [],
+    "unused_imports": [
+      [
+        "subprocess",
+        "subprocess",
+        4
+      ],
+      [
+        "Path",
+        "pathlib.Path",
+        7
+      ]
+    ],
+    "success": true
+  },
+  {
+    "file": "/Users/dex/Documents/voxgrep/download_script.py",
+    "unreachable_code": [],
+    "unused_imports": [],
+    "success": true
+  },
+  {
+    "file": "/Users/dex/Documents/voxgrep/audit_dead_code.py",
+    "unreachable_code": [],
+    "unused_imports": [
+      [
+        "sys",
+        "sys",
+        12
+      ],
+      [
+        "defaultdict",
+        "collections.defaultdict",
+        15
+      ]
+    ],
+    "success": true
+  },
+  {
+    "file": "/Users/dex/Documents/voxgrep/tests/test_youtube.py",
+    "unreachable_code": [],
+    "unused_imports": [
+      [
+        "MagicMock",
+        "unittest.mock.MagicMock",
+        2
+      ]
+    ],
+    "success": true
+  },
+  {
+    "file": "/Users/dex/Documents/voxgrep/tests/test_exporter.py",
+    "unreachable_code": [],
+    "unused_imports": [
+      [
+        "pytest",
+        "pytest",
+        1
+      ],
+      [
+        "os",
+        "os",
+        2
+      ]
+    ],
+    "success": true
+  },
+  {
+    "file": "/Users/dex/Documents/voxgrep/tests/test_search.py",
+    "unreachable_code": [],
+    "unused_imports": [
+      [
+        "os",
+        "os",
+        2
+      ],
+      [
+        "search_func",
+        "voxgrep.search",
+        4
+      ]
+    ],
+    "success": true
+  },
+  {
+    "file": "/Users/dex/Documents/voxgrep/tests/__init__.py",
+    "unreachable_code": [],
+    "unused_imports": [],
+    "success": true
+  },
+  {
+    "file": "/Users/dex/Documents/voxgrep/tests/test_transcribe.py",
+    "unreachable_code": [],
+    "unused_imports": [
+      [
+        "pytest",
+        "pytest",
+        1
+      ],
+      [
+        "os",
+        "os",
+        4
+      ]
+    ],
+    "success": true
+  },
+  {
+    "file": "/Users/dex/Documents/voxgrep/tests/test_vtt_parsing.py",
+    "unreachable_code": [],
+    "unused_imports": [
+      [
+        "pytest",
+        "pytest",
+        1
+      ]
+    ],
+    "success": true
+  },
+  {
+    "file": "/Users/dex/Documents/voxgrep/tests/test_search_semantic.py",
+    "unreachable_code": [],
+    "unused_imports": [
+      [
+        "pytest",
+        "pytest",
+        1
+      ],
+      [
+        "os",
+        "os",
+        4
+      ]
+    ],
+    "success": true
+  },
+  {
+    "file": "/Users/dex/Documents/voxgrep/tests/test_videogrep.py",
+    "unreachable_code": [],
+    "unused_imports": [
+      [
+        "re",
+        "re",
+        2
+      ],
+      [
+        "glob",
+        "glob",
+        6
+      ]
+    ],
+    "success": true
+  },
+  {
+    "file": "/Users/dex/Documents/voxgrep/tests/reproduce_all_features.py",
+    "error": "Error: module 'ast' has no attribute 'Ellipsis'",
+    "success": false
+  },
+  {
+    "file": "/Users/dex/Documents/voxgrep/tests/test_examples_utils.py",
+    "unreachable_code": [],
+    "unused_imports": [
+      [
+        "pytest",
+        "pytest",
+        1
+      ]
+    ],
+    "success": true
+  },
+  {
+    "file": "/Users/dex/Documents/voxgrep/voxgrep/sphinx.py",
+    "error": "Error: module 'ast' has no attribute 'Ellipsis'",
+    "success": false
+  },
+  {
+    "file": "/Users/dex/Documents/voxgrep/voxgrep/config.py",
+    "error": "Error: module 'ast' has no attribute 'Ellipsis'",
+    "success": false
+  },
+  {
+    "file": "/Users/dex/Documents/voxgrep/voxgrep/search_engine.py",
+    "error": "Error: module 'ast' has no attribute 'Ellipsis'",
+    "success": false
+  },
+  {
+    "file": "/Users/dex/Documents/voxgrep/voxgrep/voxgrep.py",
+    "error": "Error: module 'ast' has no attribute 'Ellipsis'",
+    "success": false
+  },
+  {
+    "file": "/Users/dex/Documents/voxgrep/voxgrep/exporter.py",
+    "error": "Error: module 'ast' has no attribute 'Ellipsis'",
+    "success": false
+  },
+  {
+    "file": "/Users/dex/Documents/voxgrep/voxgrep/vtt.py",
+    "unreachable_code": [],
+    "unused_imports": [
+      [
+        "BeautifulSoup",
+        "bs4.BeautifulSoup",
+        3
+      ]
+    ],
+    "success": true
+  },
+  {
+    "file": "/Users/dex/Documents/voxgrep/voxgrep/__init__.py",
+    "unreachable_code": [],
+    "unused_imports": [
+      [
+        "vtt",
+        "vtt",
+        4
+      ],
+      [
+        "srt",
+        "srt",
+        4
+      ],
+      [
+        "sphinx",
+        "sphinx",
+        4
+      ],
+      [
+        "fcpxml",
+        "fcpxml",
+        4
+      ],
+      [
+        "config",
+        "config",
+        4
+      ],
+      [
+        "exceptions",
+        "exceptions",
+        4
+      ],
+      [
+        "utils",
+        "utils",
+        4
+      ],
+      [
+        "voxgrep",
+        "voxgrep.voxgrep",
+        7
+      ],
+      [
+        "remove_overlaps",
+        "voxgrep.remove_overlaps",
+        7
+      ],
+      [
+        "pad_and_sync",
+        "voxgrep.pad_and_sync",
+        7
+      ],
+      [
+        "search",
+        "search_engine.search",
+        14
+      ],
+      [
+        "find_transcript",
+        "search_engine.find_transcript",
+        14
+      ],
+      [
+        "parse_transcript",
+        "search_engine.parse_transcript",
+        14
+      ],
+      [
+        "get_ngrams",
+        "search_engine.get_ngrams",
+        14
+      ],
+      [
+        "SUB_EXTS",
+        "search_engine.SUB_EXTS",
+        14
+      ],
+      [
+        "create_supercut",
+        "exporter.create_supercut",
+        23
+      ],
+      [
+        "create_supercut_in_batches",
+        "exporter.create_supercut_in_batches",
+        23
+      ],
+      [
+        "export_individual_clips",
+        "exporter.export_individual_clips",
+        23
+      ],
+      [
+        "export_m3u",
+        "exporter.export_m3u",
+        23
+      ],
+      [
+        "export_mpv_edl",
+        "exporter.export_mpv_edl",
+        23
+      ],
+      [
+        "export_xml",
+        "exporter.export_xml",
+        23
+      ],
+      [
+        "cleanup_log_files",
+        "exporter.cleanup_log_files",
+        23
+      ],
+      [
+        "BATCH_SIZE",
+        "exporter.BATCH_SIZE",
+        23
+      ],
+      [
+        "SUBTITLE_EXTENSIONS",
+        "config.SUBTITLE_EXTENSIONS",
+        35
+      ],
+      [
+        "VIDEO_EXTENSIONS",
+        "config.VIDEO_EXTENSIONS",
+        35
+      ],
+      [
+        "AUDIO_EXTENSIONS",
+        "config.AUDIO_EXTENSIONS",
+        35
+      ],
+      [
+        "MEDIA_EXTENSIONS",
+        "config.MEDIA_EXTENSIONS",
+        35
+      ],
+      [
+        "VoxGrepError",
+        "exceptions.VoxGrepError",
+        42
+      ],
+      [
+        "TranscriptNotFoundError",
+        "exceptions.TranscriptNotFoundError",
+        42
+      ],
+      [
+        "SearchError",
+        "exceptions.SearchError",
+        42
+      ],
+      [
+        "NoResultsFoundError",
+        "exceptions.NoResultsFoundError",
+        42
+      ],
+      [
+        "is_video_file",
+        "utils.is_video_file",
+        49
+      ],
+      [
+        "is_audio_file",
+        "utils.is_audio_file",
+        49
+      ],
+      [
+        "is_media_file",
+        "utils.is_media_file",
+        49
+      ],
+      [
+        "validate_media_file",
+        "utils.validate_media_file",
+        49
+      ],
+      [
+        "get_media_type",
+        "utils.get_media_type",
+        49
+      ]
+    ],
+    "success": true
+  },
+  {
+    "file": "/Users/dex/Documents/voxgrep/voxgrep/fcpxml.py",
+    "unreachable_code": [],
+    "unused_imports": [],
+    "success": true
+  },
+  {
+    "file": "/Users/dex/Documents/voxgrep/voxgrep/prefs.py",
+    "unreachable_code": [],
+    "unused_imports": [
+      [
+        "os",
+        "os",
+        2
+      ]
+    ],
+    "success": true
+  },
+  {
+    "file": "/Users/dex/Documents/voxgrep/voxgrep/cli.py",
+    "error": "Syntax error: expected an indented block after 'if' statement on line 387 (cli.py, line 388)",
+    "success": false
+  },
+  {
+    "file": "/Users/dex/Documents/voxgrep/voxgrep/utils.py",
+    "unreachable_code": [],
+    "unused_imports": [
+      [
+        "os",
+        "os",
+        6
+      ],
+      [
+        "Optional",
+        "typing.Optional",
+        9
+      ]
+    ],
+    "success": true
+  },
+  {
+    "file": "/Users/dex/Documents/voxgrep/voxgrep/transcribe.py",
+    "error": "Error: module 'ast' has no attribute 'Ellipsis'",
+    "success": false
+  },
+  {
+    "file": "/Users/dex/Documents/voxgrep/voxgrep/exceptions.py",
+    "unreachable_code": [],
+    "unused_imports": [],
+    "success": true
+  },
+  {
+    "file": "/Users/dex/Documents/voxgrep/voxgrep/srt.py",
+    "unreachable_code": [],
+    "unused_imports": [],
+    "success": true
+  },
+  {
+    "file": "/Users/dex/Documents/voxgrep/voxgrep/server/db.py",
+    "unreachable_code": [],
+    "unused_imports": [],
+    "success": true
+  },
+  {
+    "file": "/Users/dex/Documents/voxgrep/voxgrep/server/subtitles.py",
+    "error": "Error: module 'ast' has no attribute 'Ellipsis'",
+    "success": false
+  },
+  {
+    "file": "/Users/dex/Documents/voxgrep/voxgrep/server/models.py",
+    "unreachable_code": [],
+    "unused_imports": [],
+    "success": true
+  },
+  {
+    "file": "/Users/dex/Documents/voxgrep/voxgrep/server/vector_store.py",
+    "error": "Error: module 'ast' has no attribute 'Ellipsis'",
+    "success": false
+  },
+  {
+    "file": "/Users/dex/Documents/voxgrep/voxgrep/server/__init__.py",
+    "unreachable_code": [],
+    "unused_imports": [
+      [
+        "app",
+        "app.app",
+        6
+      ],
+      [
+        "engine",
+        "db.engine",
+        7
+      ],
+      [
+        "create_db_and_tables",
+        "db.create_db_and_tables",
+        7
+      ],
+      [
+        "get_session",
+        "db.get_session",
+        7
+      ],
+      [
+        "Video",
+        "models.Video",
+        8
+      ],
+      [
+        "SearchResult",
+        "models.SearchResult",
+        8
+      ],
+      [
+        "Embedding",
+        "models.Embedding",
+        8
+      ],
+      [
+        "Speaker",
+        "models.Speaker",
+        8
+      ],
+      [
+        "SpeakerSegment",
+        "models.SpeakerSegment",
+        8
+      ],
+      [
+        "ExportJob",
+        "models.ExportJob",
+        8
+      ],
+      [
+        "Composition",
+        "models.Composition",
+        8
+      ],
+      [
+        "CompositionClip",
+        "models.CompositionClip",
+        8
+      ],
+      [
+        "VectorStats",
+        "models.VectorStats",
+        8
+      ],
+      [
+        "ExportProgress",
+        "models.ExportProgress",
+        8
+      ],
+      [
+        "TransitionType",
+        "models.TransitionType",
+        8
+      ],
+      [
+        "ExportStatus",
+        "models.ExportStatus",
+        8
+      ],
+      [
+        "get_vector_store",
+        "vector_store.get_vector_store",
+        13
+      ],
+      [
+        "VectorStore",
+        "vector_store.VectorStore",
+        13
+      ],
+      [
+        "EmbeddingModel",
+        "vector_store.EmbeddingModel",
+        13
+      ],
+      [
+        "get_model_manager",
+        "multi_model.get_model_manager",
+        14
+      ],
+      [
+        "ModelManager",
+        "multi_model.ModelManager",
+        14
+      ],
+      [
+        "TranscriptionBackend",
+        "multi_model.TranscriptionBackend",
+        14
+      ],
+      [
+        "concatenate_with_transitions",
+        "transitions.concatenate_with_transitions",
+        15
+      ],
+      [
+        "concatenate_with_transitions_batched",
+        "transitions.concatenate_with_transitions_batched",
+        15
+      ],
+      [
+        "TransType",
+        "transitions.TransitionType",
+        15
+      ],
+      [
+        "SubtitleStyle",
+        "subtitles.SubtitleStyle",
+        20
+      ],
+      [
+        "burn_subtitles_on_segments",
+        "subtitles.burn_subtitles_on_segments",
+        20
+      ],
+      [
+        "PRESET_STYLES",
+        "subtitles.PRESET_STYLES",
+        20
+      ]
+    ],
+    "success": true
+  },
+  {
+    "file": "/Users/dex/Documents/voxgrep/voxgrep/server/multi_model.py",
+    "error": "Error: module 'ast' has no attribute 'Ellipsis'",
+    "success": false
+  },
+  {
+    "file": "/Users/dex/Documents/voxgrep/voxgrep/server/transitions.py",
+    "error": "Error: module 'ast' has no attribute 'Ellipsis'",
+    "success": false
+  },
+  {
+    "file": "/Users/dex/Documents/voxgrep/voxgrep/server/diarization.py",
+    "error": "Error: module 'ast' has no attribute 'Ellipsis'",
+    "success": false
+  },
+  {
+    "file": "/Users/dex/Documents/voxgrep/voxgrep/server/app.py",
+    "error": "Error: module 'ast' has no attribute 'Ellipsis'",
+    "success": false
+  },
+  {
+    "file": "/Users/dex/Documents/voxgrep/voxgrep/modules/youtube.py",
+    "error": "Error: module 'ast' has no attribute 'Ellipsis'",
+    "success": false
+  },
+  {
+    "file": "/Users/dex/Documents/voxgrep/examples/only_silence.py",
+    "unreachable_code": [],
+    "unused_imports": [],
+    "success": true
+  },
+  {
+    "file": "/Users/dex/Documents/voxgrep/examples/pattern_matcher.py",
+    "unreachable_code": [],
+    "unused_imports": [
+      [
+        "sys",
+        "sys",
+        1
+      ]
+    ],
+    "success": true
+  },
+  {
+    "file": "/Users/dex/Documents/voxgrep/examples/auto_youtube.py",
+    "error": "Error: module 'ast' has no attribute 'Ellipsis'",
+    "success": false
+  },
+  {
+    "file": "/Users/dex/Documents/voxgrep/examples/auto_supercut.py",
+    "unreachable_code": [],
+    "unused_imports": [
+      [
+        "os",
+        "os",
+        2
+      ]
+    ],
+    "success": true
+  },
+  {
+    "file": "/Users/dex/Documents/voxgrep/examples/benchmark_mlx.py",
+    "error": "Error: module 'ast' has no attribute 'Ellipsis'",
+    "success": false
+  },
+  {
+    "file": "/Users/dex/Documents/voxgrep/examples/utils.py",
+    "error": "Error: module 'ast' has no attribute 'Ellipsis'",
+    "success": false
+  },
+  {
+    "file": "/Users/dex/Documents/voxgrep/examples/parts_of_speech.py",
+    "unreachable_code": [],
+    "unused_imports": [],
+    "success": true
+  },
+  {
+    "file": "/Users/dex/Documents/voxgrep/examples/remove_silence.py",
+    "unreachable_code": [],
+    "unused_imports": [],
+    "success": true
+  }
+]

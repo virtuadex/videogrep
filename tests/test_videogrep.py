@@ -1,9 +1,7 @@
 import voxgrep
-import re
 from collections import Counter
 from pathlib import Path
 from pytest import approx
-import glob
 import subprocess
 import sys
 

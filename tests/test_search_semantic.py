@@ -1,7 +1,5 @@
-import pytest
 from unittest.mock import patch, MagicMock
 import numpy as np
-import os
 from voxgrep import search_engine
 
 @patch('voxgrep.search_engine.SentenceTransformer')

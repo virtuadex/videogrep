@@ -35,5 +35,5 @@ This list tracks the planned improvements and future features for the VoxGrep pr
 
 ## 📦 Maintenance
 
-- [ ] Standardize Python environment across all installation paths.
-- [ ] Improve automated test coverage for CLI interactive modes.
+- [x] Standardize Python environment across all installation paths.
+- [x] Improve automated test coverage for CLI interactive modes.

@@ -385,7 +385,6 @@ def execute_args(args):
                 if not search_args.demo:
                     search_args.preview = questionary.confirm("Preview in MPV?", default=True).ask()
                     if not search_args.preview:
-                    if not search_args.preview:
                         # Generate smart default from selected n-gram
                         default_ngram_out = "ngram_supercut"
                         if search_args.search:
@@ -504,7 +503,7 @@ def main():
         "--input", "-i",
         dest="inputfile",
         nargs="*",
-        required=True,
+        required=False,  # Not required for --doctor or --version
         help="video file or files",
     )
     io_group.add_argument(
@@ -638,6 +637,11 @@ def main():
         action="store_true",
         help="Show results without creating a supercut",
     )
+    adv_group.add_argument(
+        "--doctor",
+        action="store_true",
+        help="Run environment diagnostics to check installation health",
+    )
     
     parser.add_argument(
         "--version", "-v",
@@ -647,6 +651,16 @@ def main():
 
     try:
         args = parser.parse_args()
+        
+        # Handle doctor command first (diagnostic mode)
+        if hasattr(args, 'doctor') and args.doctor:
+            from .doctor import run_doctor
+            sys.exit(run_doctor())
+        
+        # Validate that --input is provided for non-diagnostic operations
+        if not args.inputfile:
+            parser.error("the following arguments are required: --input/-i")
+        
         execute_args(args)
     except SystemExit:
         # If argparse fails (e.g. invalid args), standard error is printed.

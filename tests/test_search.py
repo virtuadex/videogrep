@@ -1,7 +1,5 @@
 import pytest
-import os
 from pathlib import Path
-from voxgrep import search as search_func
 import voxgrep.search_engine as search_mod
 
 def File(path):
