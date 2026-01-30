@@ -8,27 +8,33 @@ from tqdm import tqdm
 logger = logging.getLogger(__name__)
 
 def download_video(
-    url: str, 
-    output_template: str = "%(title)s.%(ext)s", 
+    url: str,
+    output_template: str = "%(title)s.%(ext)s",
     format_code: str = None,
     progress_hooks: list = None,
     restrict_filenames: bool = True,
     quiet: bool = True,
-    languages: list = None
+    languages: list = None,
+    cookies_from_browser: str = None,
+    cookies_file: str = None
 ) -> str:
     """
     Download a video (and subtitles) from a URL using yt-dlp.
-    
+
     Args:
         url (str): The URL of the video to download.
-        output_template (str): The output filename template. 
+        output_template (str): The output filename template.
                                Default is "%(title)s.%(ext)s".
-        format_code (str): The format code to use (optional). 
+        format_code (str): The format code to use (optional).
                            Defaults to robust logic.
         progress_hooks (list): Optional list of callback functions for progress updates.
         restrict_filenames (bool): Restrict filenames to ASCII characters (default: True).
         quiet (bool): Whether to suppress stdout output (default: True).
-                               
+        cookies_from_browser (str): Browser to extract cookies from (e.g., 'chrome', 'firefox',
+                                    'safari', 'edge', 'brave', 'opera', 'chromium').
+                                    Useful for X/Twitter and age-restricted content.
+        cookies_file (str): Path to a Netscape-format cookies.txt file.
+
     Returns:
         str: The filename of the downloaded video.
     """
@@ -45,8 +51,16 @@ def download_video(
         'no_warnings': quiet,
         'restrictfilenames': restrict_filenames,
         # Ensure we merge into mp4 if possible for compatibility
-        'merge_output_format': 'mp4', 
+        'merge_output_format': 'mp4',
     }
+
+    # Add cookie support for authenticated downloads (X/Twitter, etc.)
+    if cookies_from_browser:
+        ydl_opts['cookiesfrombrowser'] = (cookies_from_browser,)
+        logger.info(f"Using cookies from browser: {cookies_from_browser}")
+    elif cookies_file:
+        ydl_opts['cookiefile'] = cookies_file
+        logger.info(f"Using cookies file: {cookies_file}")
     
     pbar = None
     
@@ -110,28 +124,32 @@ def download_video(
                 pbar.close()
 
 async def download_video_async(
-    url: str, 
-    output_template: str = "%(title)s.%(ext)s", 
+    url: str,
+    output_template: str = "%(title)s.%(ext)s",
     format_code: str = None,
     progress_hooks: list = None,
     restrict_filenames: bool = True,
     quiet: bool = True,
-    languages: list = None
+    languages: list = None,
+    cookies_from_browser: str = None,
+    cookies_file: str = None
 ) -> str:
     """
     Async wrapper for download_video. Runs the download in a thread pool.
     """
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(
-        None, 
+        None,
         functools.partial(
-            download_video, 
-            url, 
-            output_template, 
-            format_code, 
-            progress_hooks, 
+            download_video,
+            url,
+            output_template,
+            format_code,
+            progress_hooks,
             restrict_filenames,
             quiet,
-            languages
+            languages,
+            cookies_from_browser,
+            cookies_file
         )
     )

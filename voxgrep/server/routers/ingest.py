@@ -18,29 +18,44 @@ router = APIRouter()
 
 @router.post("/download")
 def download_video_route(
-    url: str, 
-    output_dir: str | None = None, 
+    url: str,
+    output_dir: str | None = None,
     device: str = "auto",
+    cookies_from_browser: str | None = None,
+    cookies_file: str | None = None,
     background_tasks: BackgroundTasks = None
 ):
-    """Downloads a video from a URL using yt-dlp and transcribes it."""
-    # Ensure background_tasks is not None to avoid AttributeError if not provided (though FastAPI usually injects it)
+    """Downloads a video from a URL using yt-dlp and transcribes it.
+
+    Args:
+        url: Video URL (YouTube, X/Twitter, etc.)
+        output_dir: Output directory for downloaded files
+        device: Transcription device (auto, cpu, mlx, cuda)
+        cookies_from_browser: Browser to extract cookies from (chrome, firefox, safari, edge, brave).
+                              Useful for X/Twitter and age-restricted content.
+        cookies_file: Path to Netscape-format cookies.txt file
+    """
     if background_tasks is None:
-        # This shouldn't happen with FastAPI injection but good for safety/testing
         raise HTTPException(status_code=500, detail="BackgroundTasks dependency missing")
 
     target_dir = os.path.abspath(output_dir or config.downloads_dir)
     ensure_directory_exists(target_dir)
 
+    # Use request params or fall back to server config defaults
+    effective_cookies_browser = cookies_from_browser or config.download.cookies_from_browser
+    effective_cookies_file = cookies_file or config.download.cookies_file
+
     def run_download_and_transcribe():
         try:
             logger.info(f"Downloading video from {url} to {target_dir}")
-            
+
             # Use shared module logic (includes subtitle download)
             filepath = download_video(
-                url, 
+                url,
                 output_template=f"{target_dir}/%(title)s.%(ext)s",
-                quiet=False
+                quiet=False,
+                cookies_from_browser=effective_cookies_browser,
+                cookies_file=effective_cookies_file
             )
             
             if not os.path.exists(filepath):

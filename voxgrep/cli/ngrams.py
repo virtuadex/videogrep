@@ -11,69 +11,84 @@ from typing import Optional
 import questionary
 
 from .ui import console, print_session_summary
+from .io import CLIContext
+from .config import SearchConfig, ExportConfig
+from .action_loop import (
+    ActionLoop, ActionLoopState, ActionResult, Action, separator,
+    create_preview_handler, create_exit_handler, create_back_handler
+)
 
 from .workflows import get_output_filename, post_export_menu
 from .commands import calculate_ngrams, run_voxgrep_search
 
 
 def select_ngrams_single_mode(
-    most_common: list[tuple[tuple, int]], 
-    selected_ngrams_set: set[str]
+    most_common: list[tuple[tuple, int]],
+    selected_ngrams_set: set[str],
+    ctx: Optional[CLIContext] = None,
 ) -> tuple[str | None, set[str], str | None]:
     """
     Single-select mode for n-gram selection.
-    
+
     Args:
         most_common: List of (ngram, count) tuples
         selected_ngrams_set: Currently selected n-grams
-        
+        ctx: Optional CLI context for prompts
+
     Returns:
         Tuple of (action, updated_selection, word_to_ignore)
     """
+    prompts = ctx.prompts if ctx else None
+    con = ctx.console if ctx else console
+
     choices = []
     choices.append(questionary.Choice(
-        "[+] Switch to Multi-Select Mode (Checkboxes)", 
+        "[+] Switch to Multi-Select Mode (Checkboxes)",
         value="__SWITCH_MULTI__"
     ))
-    
+
     if selected_ngrams_set:
         choices.append(questionary.Choice(
-            f"  [!] Use Current Selection ({len(selected_ngrams_set)} items)", 
+            f"  [!] Use Current Selection ({len(selected_ngrams_set)} items)",
             value="__USE_EXISTING__"
         ))
-    
+
     choices.append(questionary.Choice(
-        "[🚫] Add Word to Ignored List (Filter Out)",
+        "[X] Add Word to Ignored List (Filter Out)",
         value="__IGNORE_WORD__"
     ))
-    
+
     choices.append(questionary.Separator())
-    
+
     for ngram, count in most_common:
         val = " ".join(ngram)
         label = f"{val} ({count}x)"
         choices.append(questionary.Choice(label, value=val))
-    
+
     choices.append(questionary.Separator())
     choices.append(questionary.Choice("  [Back to Main Menu]", value="__EXIT__"))
-    
-    console.print("\n[bold cyan]--- Select N-gram (Type to filter, Enter to select) ---[/bold cyan]")
-    selection = questionary.select(
-        "Select n-gram:",
-        choices=choices,
-        style=questionary.Style([('highlighted', 'fg:cyan bold')]),
-        use_indicator=True
-    ).ask()
-    
+
+    con.print("\n[bold cyan]--- Select N-gram (Type to filter, Enter to select) ---[/bold cyan]")
+
+    if prompts:
+        selection = prompts.select("Select n-gram:", choices)
+    else:
+        selection = questionary.select(
+            "Select n-gram:",
+            choices=choices,
+            style=questionary.Style([('highlighted', 'fg:cyan bold')]),
+            use_indicator=True
+        ).ask()
+
     if selection is None or selection == "__EXIT__":
         return "__EXIT__", selected_ngrams_set, None
-        
+
     if selection == "__SWITCH_MULTI__":
         return "__SWITCH_MULTI__", selected_ngrams_set, None
-        
+
     if selection == "__USE_EXISTING__":
         return "__DONE__", selected_ngrams_set, None
-    
+
     if selection == "__IGNORE_WORD__":
         return "__IGNORE_WORD__", selected_ngrams_set, None
 
@@ -82,41 +97,50 @@ def select_ngrams_single_mode(
 
 
 def select_ngrams_multi_mode(
-    most_common: list[tuple[tuple, int]], 
-    selected_ngrams_set: set[str]
+    most_common: list[tuple[tuple, int]],
+    selected_ngrams_set: set[str],
+    ctx: Optional[CLIContext] = None,
 ) -> tuple[str | None, set[str], str | None]:
     """
     Multi-select mode for n-gram selection.
-    
+
     Args:
         most_common: List of (ngram, count) tuples
         selected_ngrams_set: Currently selected n-grams
-        
+        ctx: Optional CLI context for prompts
+
     Returns:
         Tuple of (action, updated_selection, word_to_ignore)
     """
+    prompts = ctx.prompts if ctx else None
+    con = ctx.console if ctx else console
+
     checkbox_choices = []
-    
+
     for ngram, count in most_common:
         val = " ".join(ngram)
         label = f"{val} ({count}x)"
         is_checked = val in selected_ngrams_set
         checkbox_choices.append(questionary.Choice(label, value=val, checked=is_checked))
-        
+
     checkbox_choices.append(questionary.Separator())
-    checkbox_choices.append(questionary.Choice("  ✓ Done / Confirm Selection", value="__DONE__"))
+    checkbox_choices.append(questionary.Choice("  Done / Confirm Selection", value="__DONE__"))
     checkbox_choices.append(questionary.Choice("  [x] Switch back to Single Select", value="__SWITCH_SINGLE__"))
-    
-    console.print("\n[bold cyan]--- Multi-Select N-grams (Space to toggle, Enter to confirm) ---[/bold cyan]")
-    page_selection = questionary.checkbox(
-        "Select n-grams:",
-        choices=checkbox_choices,
-        style=questionary.Style([('highlighted', 'fg:cyan bold')])
-    ).ask()
-    
+
+    con.print("\n[bold cyan]--- Multi-Select N-grams (Space to toggle, Enter to confirm) ---[/bold cyan]")
+
+    if prompts:
+        page_selection = prompts.checkbox("Select n-grams:", checkbox_choices)
+    else:
+        page_selection = questionary.checkbox(
+            "Select n-grams:",
+            choices=checkbox_choices,
+            style=questionary.Style([('highlighted', 'fg:cyan bold')])
+        ).ask()
+
     if page_selection is None:
         return "__EXIT__", selected_ngrams_set, None
-        
+
     # Handle control options
     if "__SWITCH_SINGLE__" in page_selection:
         # Capture valid selections before switching
@@ -124,46 +148,57 @@ def select_ngrams_multi_mode(
             if val and not val.startswith("__"):
                 selected_ngrams_set.add(val)
         return "__SWITCH_SINGLE__", selected_ngrams_set, None
-        
+
     # Extract valid selections
     new_set = set()
     for val in page_selection:
         if val and not val.startswith("__"):
             new_set.add(val)
-    
+
     if not new_set and "__DONE__" not in page_selection:
         # User hit enter without selecting anything
-        console.print("[yellow]No n-grams selected.[/yellow]")
+        con.print("[yellow]No n-grams selected.[/yellow]")
         return "__CONTINUE__", selected_ngrams_set, None
-    
+
     return "__DONE__", new_set, None
 
 
-def ngram_selection_phase(most_common: list[tuple[tuple, int]]) -> list[str] | tuple[str, str] | None:
+def ngram_selection_phase(
+    most_common: list[tuple[tuple, int]],
+    ctx: Optional[CLIContext] = None,
+) -> list[str] | tuple[str, str] | None:
     """
     Handle the interactive n-gram selection phase.
-    
+
     Args:
         most_common: List of (ngram, count) tuples
-        
+        ctx: Optional CLI context for prompts
+
     Returns:
-        List of selected n-grams, tuple of ("__IGNORE__", word) if ignoring, or None if cancelled
+        List of selected n-grams, tuple of ("__REFRESH__", word) if ignoring, or None if cancelled
     """
+    prompts = ctx.prompts if ctx else None
+    con = ctx.console if ctx else console
+
     if not most_common:
-        console.print("[yellow]No n-grams found.[/yellow]")
+        con.print("[yellow]No n-grams found.[/yellow]")
         return None
-    
-    console.print("\n[green]Select n-gram to search (or switch to Multi-Select):[/green]")
-    
+
+    con.print("\n[green]Select n-gram to search (or switch to Multi-Select):[/green]")
+
     selected_ngrams_set: set[str] = set()
     mode = "single"
-    
+
     while True:
         if mode == "single":
-            action, selected_ngrams_set, word_to_ignore = select_ngrams_single_mode(most_common, selected_ngrams_set)
+            action, selected_ngrams_set, word_to_ignore = select_ngrams_single_mode(
+                most_common, selected_ngrams_set, ctx
+            )
         else:
-            action, selected_ngrams_set, word_to_ignore = select_ngrams_multi_mode(most_common, selected_ngrams_set)
-        
+            action, selected_ngrams_set, word_to_ignore = select_ngrams_multi_mode(
+                most_common, selected_ngrams_set, ctx
+            )
+
         if action == "__EXIT__":
             return None
         elif action == "__SWITCH_MULTI__":
@@ -172,21 +207,26 @@ def ngram_selection_phase(most_common: list[tuple[tuple, int]]) -> list[str] | t
             mode = "single"
         elif action == "__IGNORE_WORD__":
             # Prompt user to type or select a word to ignore
-            import questionary
             from ..utils.prefs import load_prefs, save_prefs
-            
+
             # Build list of all unique words from n-grams
             all_words = set()
             for ngram, _ in most_common:
                 for word in ngram:
                     all_words.add(word)
-            
-            word_to_ignore = questionary.autocomplete(
-                "Enter word to add to ignored list:",
-                choices=sorted(all_words),
-                style=questionary.Style([('highlighted', 'fg:cyan bold')])
-            ).ask()
-            
+
+            if prompts:
+                word_to_ignore = prompts.autocomplete(
+                    "Enter word to add to ignored list:",
+                    sorted(all_words)
+                )
+            else:
+                word_to_ignore = questionary.autocomplete(
+                    "Enter word to add to ignored list:",
+                    choices=sorted(all_words),
+                    style=questionary.Style([('highlighted', 'fg:cyan bold')])
+                ).ask()
+
             if word_to_ignore:
                 # Add to preferences
                 prefs = load_prefs()
@@ -195,11 +235,11 @@ def ngram_selection_phase(most_common: list[tuple[tuple, int]]) -> list[str] | t
                     ignored_words.append(word_to_ignore.lower())
                     prefs["ignored_words"] = ignored_words
                     save_prefs(prefs)
-                    console.print(f"[green]✓ Added '{word_to_ignore}' to ignored words list.[/green]")
+                    con.print(f"[green]Added '{word_to_ignore}' to ignored words list.[/green]")
                     # Signal to refresh n-grams
                     return ("__REFRESH__", word_to_ignore)
                 else:
-                    console.print(f"[yellow]'{word_to_ignore}' is already in the ignored list.[/yellow]")
+                    con.print(f"[yellow]'{word_to_ignore}' is already in the ignored list.[/yellow]")
             continue
         elif action == "__DONE__":
             return list(selected_ngrams_set)
@@ -207,190 +247,181 @@ def ngram_selection_phase(most_common: list[tuple[tuple, int]]) -> list[str] | t
             continue
 
 
-def ngram_action_phase(args: Namespace, selected_ngrams: list[str]) -> bool:
+def ngram_action_phase(
+    args: Namespace,
+    selected_ngrams: list[str],
+    ctx: Optional[CLIContext] = None,
+) -> bool:
     """
-    Handle the n-gram action phase (demo, preview, export).
-    
+    Handle the n-gram action phase (demo, preview, export) using ActionLoop.
+
     Args:
         args: Original arguments namespace
         selected_ngrams: List of selected n-grams
-        
+        ctx: Optional CLI context for dependency injection
+
     Returns:
         True to go back to selection, False to exit
     """
-    # Create search args
-    search_args = Namespace()
-    search_args.inputfile = args.inputfile
-    search_args.search = selected_ngrams
-    search_args.searchtype = "sentence"
-    search_args.maxclips = 0
-    search_args.padding = None
-    search_args.randomize = False
-    search_args.resync = 0
-    search_args.sync = 0
-    search_args.export_clips = False
-    search_args.write_vtt = False
-    search_args.exact_match = getattr(args, 'exact_match', False)
-    search_args.burn_in_subtitles = getattr(args, 'burn_in_subtitles', False)
-    search_args.ignored_words = getattr(args, 'ignored_words', [])
-    search_args.use_ignored_words = getattr(args, 'use_ignored_words', True)
-    
+    # Use default context if not provided
+    if ctx is None:
+        ctx = CLIContext.default()
+
+    # Create config objects from args
+    search = SearchConfig(
+        query=selected_ngrams,
+        search_type="sentence",
+        maxclips=0,
+        padding=None,
+        randomize=False,
+        exact_match=getattr(args, 'exact_match', False),
+        resync=0,
+        ignored_words=getattr(args, 'ignored_words', []),
+        use_ignored_words=getattr(args, 'use_ignored_words', True),
+    )
+
+    export = ExportConfig(
+        output="ngram_supercut.mp4",
+        preview=False,
+        demo=False,
+        export_clips=False,
+        write_vtt=False,
+        burn_in_subtitles=getattr(args, 'burn_in_subtitles', False),
+    )
+
     # Show demo if requested
-    if questionary.confirm("Show text results table (Demo Mode)?", default=True).ask():
-        search_args.demo = True
-        search_args.preview = False
-        search_args.outputfile = "ngram_supercut.mp4"
-        
+    show_demo = ctx.prompts.confirm("Show text results table (Demo Mode)?", default=True)
+    if show_demo:
         result = run_voxgrep_search(
-            files=search_args.inputfile,
-            query=search_args.search,
-            search_type=search_args.searchtype,
-            output=search_args.outputfile,
-            maxclips=search_args.maxclips,
-            padding=search_args.padding,
+            files=args.inputfile,
+            query=search.query,
+            search_type=search.search_type,
+            output=export.output,
+            maxclips=search.maxclips,
+            padding=search.padding,
             demo=True,
-            random_order=search_args.randomize,
-            resync=search_args.sync,
-            export_clips=search_args.export_clips,
-            write_vtt=search_args.write_vtt,
+            random_order=search.randomize,
+            resync=search.resync,
+            export_clips=export.export_clips,
+            write_vtt=export.write_vtt,
             preview=False,
-            exact_match=search_args.exact_match,
-            burn_in_subtitles=search_args.burn_in_subtitles
+            exact_match=search.exact_match,
+            burn_in_subtitles=export.burn_in_subtitles
         )
         if isinstance(result, dict):
             print_session_summary(result)
-    
-    # Reset demo flag
-    search_args.demo = False
-    
-    # Action loop
-    while True:
-        console.print(f"\n[bold cyan]--- Action Menu ({' + '.join(selected_ngrams)}) ---[/bold cyan]")
-        
-        default_ngram_out = get_output_filename(search_args.search, "ngram_supercut")
-        
-        action = questionary.select(
-            "What would you like to do?",
-            choices=[
-                questionary.Choice("Preview Results (MPV)", value="preview"),
-                questionary.Choice("Export Supercut", value="export"),
-                questionary.Choice("Settings (Search Type, Padding, etc.)", value="settings"),
-                questionary.Choice("Edit Selection (Add/Remove N-grams)", value="edit_selection"),
-                questionary.Choice("Start Over (New Search)", value="start_over"),
-                questionary.Choice("Cancel / Back", value="cancel")
-            ]
-        ).ask()
-        
-        if action == "cancel" or action == "start_over":
-            return False
-            
-        if action == "edit_selection":
-            return True  # Go back to selection phase
-            
-        if action == "settings":
-            search_args.searchtype = questionary.select(
-                "Search Type",
-                choices=["sentence", "fragment", "mash", "semantic"],
-                default=search_args.searchtype
-            ).ask()
 
-            p = questionary.text(
-                "Padding (seconds, e.g., 0.5):", 
-                default=str(search_args.padding) if search_args.padding else ""
-            ).ask()
-            search_args.padding = float(p) if p else None
-            
-            m = questionary.text("Max clips (0 for all):", default=str(search_args.maxclips)).ask()
-            search_args.maxclips = int(m) if m else 0
-            
-            search_args.randomize = questionary.confirm(
-                "Randomize order?", 
-                default=search_args.randomize
-            ).ask()
-            
-            search_args.exact_match = questionary.confirm(
-                "Exact Match (Whole Words Only)?",
-                default=search_args.exact_match
-            ).ask()
-            
-            search_args.burn_in_subtitles = questionary.confirm(
-                "Burn-in Subtitles in output?",
-                default=search_args.burn_in_subtitles
-            ).ask()
-            
-            console.print(f"[green]Settings updated. Search Type: {search_args.searchtype}, Exact Match: {search_args.exact_match}, Burn-in: {search_args.burn_in_subtitles}[/green]")
-            continue
+    # Create action loop state
+    state = ActionLoopState(
+        search=search,
+        export=export,
+        input_files=args.inputfile,
+        ctx=ctx,
+    )
 
-        if action == "preview":
-            search_args.preview = True
-            search_args.outputfile = "preview_temp.mp4"
-            result = run_voxgrep_search(
-                files=search_args.inputfile,
-                query=search_args.search,
-                search_type=search_args.searchtype,
-                output=search_args.outputfile,
-                maxclips=search_args.maxclips,
-                padding=search_args.padding,
-                demo=False,
-                random_order=search_args.randomize,
-                resync=search_args.sync,
-                export_clips=search_args.export_clips,
-                write_vtt=search_args.write_vtt,
-                preview=True,
-                exact_match=search_args.exact_match,
-                burn_in_subtitles=search_args.burn_in_subtitles
-            )
-            if isinstance(result, dict):
-                print_session_summary(result)
-                
-            search_args.preview = False
-            continue
-            
-        if action == "export":
-            search_args.outputfile = get_output_filename(search_args.search, default_ngram_out)
-            search_args.preview = False
-            
-            result = run_voxgrep_search(
-                files=search_args.inputfile,
-                query=search_args.search,
-                search_type=search_args.searchtype,
-                output=search_args.outputfile,
-                maxclips=search_args.maxclips,
-                padding=search_args.padding,
-                demo=False,
-                random_order=search_args.randomize,
-                resync=search_args.sync,
-                export_clips=search_args.export_clips,
-                write_vtt=search_args.write_vtt,
-                preview=False,
-                exact_match=search_args.exact_match,
-                burn_in_subtitles=search_args.burn_in_subtitles
-            )
-            
-            if isinstance(result, dict) and result.get("success"):
-                print_session_summary(result)
-            
-            if result:
-                post_act = post_export_menu(search_args.outputfile)
-                
-                if post_act == "edit":
-                    continue
-                elif post_act == "new":
-                    return False
-                elif post_act == "main":
-                    return False
-            else:
-                console.print("[red]Export failed.[/red]")
-            continue
+    # Define handlers
+    def preview_handler(s: ActionLoopState) -> ActionResult:
+        s.export.preview = True
+        s.export.output = "preview_temp.mp4"
+        result = s.run_search(preview=True)
+        if isinstance(result, dict):
+            print_session_summary(result)
+        s.export.preview = False
+        return ActionResult.CONTINUE
+
+    def export_handler(s: ActionLoopState) -> ActionResult:
+        default_out = get_output_filename(s.search.query, "ngram_supercut")
+        s.export.output = get_output_filename(s.search.query, default_out)
+        s.export.preview = False
+
+        result = s.run_search()
+
+        if isinstance(result, dict) and result.get("success"):
+            print_session_summary(result)
+
+        if result:
+            post_act = post_export_menu(s.export.output)
+            if post_act == "edit":
+                return ActionResult.CONTINUE
+            elif post_act in ("new", "main"):
+                return ActionResult.EXIT
+        else:
+            s.ctx.console.print("[red]Export failed.[/red]")
+
+        return ActionResult.CONTINUE
+
+    def settings_handler(s: ActionLoopState) -> ActionResult:
+        s.search.search_type = s.ctx.prompts.select(
+            "Search Type",
+            choices=["sentence", "fragment", "mash", "semantic"],
+            default=s.search.search_type,
+        ) or s.search.search_type
+
+        padding_str = s.ctx.prompts.text(
+            "Padding (seconds, e.g., 0.5):",
+            default=str(s.search.padding) if s.search.padding else "",
+        )
+        s.search.padding = float(padding_str) if padding_str else None
+
+        maxclips_str = s.ctx.prompts.text(
+            "Max clips (0 for all):",
+            default=str(s.search.maxclips),
+        )
+        s.search.maxclips = int(maxclips_str) if maxclips_str else 0
+
+        s.search.randomize = s.ctx.prompts.confirm(
+            "Randomize order?",
+            default=s.search.randomize,
+        ) or False
+
+        s.search.exact_match = s.ctx.prompts.confirm(
+            "Exact Match (Whole Words Only)?",
+            default=s.search.exact_match,
+        ) or False
+
+        s.export.burn_in_subtitles = s.ctx.prompts.confirm(
+            "Burn-in Subtitles in output?",
+            default=s.export.burn_in_subtitles,
+        ) or False
+
+        s.ctx.console.print(
+            f"[green]Settings updated. Search Type: {s.search.search_type}, "
+            f"Exact Match: {s.search.exact_match}, Burn-in: {s.export.burn_in_subtitles}[/green]"
+        )
+        return ActionResult.CONTINUE
+
+    # Build actions
+    actions = [
+        Action("Preview Results (MPV)", "preview", preview_handler),
+        Action("Export Supercut", "export", export_handler),
+        Action("Settings (Search Type, Padding, etc.)", "settings", settings_handler),
+        Action("Edit Selection (Add/Remove N-grams)", "edit_selection", create_back_handler()),
+        Action("Start Over (New Search)", "start_over", create_exit_handler()),
+        Action("Cancel / Back", "cancel", create_exit_handler()),
+    ]
+
+    # Create and run action loop
+    title = f"Action Menu ({' + '.join(selected_ngrams)})"
+    loop = ActionLoop(title, actions, ctx, state)
+    result = loop.run()
+
+    # BACK means go back to selection, EXIT means exit entirely
+    return result == ActionResult.BACK
 
 
-def interactive_ngrams_workflow(args: Namespace) -> None:
+def interactive_ngrams_workflow(
+    args: Namespace,
+    ctx: Optional[CLIContext] = None,
+) -> None:
     """
     Main interactive workflow for n-gram analysis.
-    
+
     Args:
         args: Arguments namespace with ngrams, inputfile, and filter settings
+        ctx: Optional CLI context for dependency injection
     """
+    con = ctx.console if ctx else console
+
     # Calculate n-grams
     most_common, filtered = calculate_ngrams(
         args.inputfile,
@@ -398,23 +429,23 @@ def interactive_ngrams_workflow(args: Namespace) -> None:
         getattr(args, 'ignored_words', None),
         getattr(args, 'use_ignored_words', True)
     )
-    
+
     if not most_common:
         return
-    
+
     from .ui import print_ngrams_table
     print_ngrams_table(most_common, filtered, args.ngrams)
-    
+
     # Selection and action loop
     while True:
-        selected_ngrams = ngram_selection_phase(most_common)
-        
+        selected_ngrams = ngram_selection_phase(most_common, ctx)
+
         if not selected_ngrams:
             return  # User cancelled or no selection
-        
+
         # Check if user wants to refresh (added word to ignore list)
         if isinstance(selected_ngrams, tuple) and selected_ngrams[0] == "__REFRESH__":
-            console.print("\n[cyan]Recalculating n-grams with updated filter...[/cyan]")
+            con.print("\n[cyan]Recalculating n-grams with updated filter...[/cyan]")
             # Recalculate with updated ignored words
             most_common, filtered = calculate_ngrams(
                 args.inputfile,
@@ -423,13 +454,13 @@ def interactive_ngrams_workflow(args: Namespace) -> None:
                 True   # Use filter
             )
             if not most_common:
-                console.print("[yellow]No n-grams remaining after filtering.[/yellow]")
+                con.print("[yellow]No n-grams remaining after filtering.[/yellow]")
                 return
             print_ngrams_table(most_common, filtered, args.ngrams)
             continue  # Go back to selection
-        
+
         # Enter action phase
-        back_to_selection = ngram_action_phase(args, selected_ngrams)
-        
+        back_to_selection = ngram_action_phase(args, selected_ngrams, ctx)
+
         if not back_to_selection:
             return  # User wants to exit or start over

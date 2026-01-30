@@ -6,6 +6,7 @@ It provides both interactive and argument-based modes for video search.
 """
 
 import sys
+import os
 import argparse
 import logging
 
@@ -13,7 +14,6 @@ try:
     from rich_argparse import RichHelpFormatter
     HelpFormatter = RichHelpFormatter
 except ImportError:
-    import argparse
     HelpFormatter = argparse.HelpFormatter
 from rich.logging import RichHandler
 
@@ -43,15 +43,45 @@ logger = logging.getLogger("voxgrep.cli")
 def create_argument_parser() -> argparse.ArgumentParser:
     """
     Create and configure the argument parser.
-    
+
     Returns:
         Configured ArgumentParser instance
     """
     prefs = load_prefs()
-    
+
+    epilog = """
+Examples:
+  voxgrep                                    # Start interactive mode
+  voxgrep -i video.mp4 -s "hello" -o out.mp4 # Search and export supercut
+  voxgrep -i video.mp4 --transcribe          # Transcribe a video
+  voxgrep -i "*.mp4" -s "keyword" --demo     # Preview matches without exporting
+  voxgrep -i video.mp4 --ngrams 20           # Show top 20 frequent phrases
+  voxgrep -i https://youtube.com/... -tr     # Download and transcribe YouTube video
+  voxgrep --doctor                           # Check installation health
+
+Search Types:
+  sentence  - Match whole sentences containing the term (default)
+  fragment  - Match only the exact fragment with timestamps
+  mash      - Combine all matches into rapid montage
+  semantic  - Search by meaning using AI embeddings (requires torch)
+
+Devices:
+  cpu   - Works everywhere, slower transcription
+  cuda  - NVIDIA GPU acceleration (requires CUDA toolkit)
+  mlx   - Apple Silicon acceleration (fastest on M1/M2/M3 Macs)
+"""
+
+    # Use RawDescriptionHelpFormatter to preserve epilog formatting when rich_argparse isn't available
+    if HelpFormatter == argparse.HelpFormatter:
+        formatter = argparse.RawDescriptionHelpFormatter
+    else:
+        # rich_argparse preserves formatting automatically
+        formatter = HelpFormatter
+
     parser = argparse.ArgumentParser(
         description='Generate a "supercut" of one or more video files by searching through subtitle tracks.',
-        formatter_class=HelpFormatter
+        formatter_class=formatter,
+        epilog=epilog
     )
     
     # Input/Output
@@ -62,6 +92,12 @@ def create_argument_parser() -> argparse.ArgumentParser:
         nargs="*",
         required=False,  # Not required for --doctor or --version
         help="video file or files, or YouTube URLs",
+    )
+    io_group.add_argument(
+        "--files-from", "-F",
+        dest="files_from",
+        metavar="FILE",
+        help="read input files from FILE (one path per line, supports # comments)",
     )
     io_group.add_argument(
         "--output", "-o",
@@ -244,6 +280,31 @@ def create_argument_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Run environment diagnostics to check installation health",
     )
+
+    # Output control
+    output_group = parser.add_argument_group("Output Control")
+    output_group.add_argument(
+        "--quiet", "-q",
+        action="store_true",
+        help="Suppress non-essential output (useful for scripting)",
+    )
+    output_group.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Enable verbose/debug output",
+    )
+    output_group.add_argument(
+        "--dry-run",
+        dest="dry_run",
+        action="store_true",
+        help="Show what would be done without actually doing it",
+    )
+    output_group.add_argument(
+        "--json",
+        dest="json_output",
+        action="store_true",
+        help="Output results as JSON (for scripting/piping)",
+    )
     
     parser.add_argument(
         "--version", "-v",
@@ -258,17 +319,27 @@ def main() -> None:
     """
     Run the command line version of VoxGrep.
     """
-    print_banner()
-
     # If no arguments provided, switch to interactive mode
     if len(sys.argv) == 1:
+        print_banner()
         interactive_mode()
         return
 
     # Parse command-line arguments
     parser = create_argument_parser()
     args = parser.parse_args()
-    
+
+    # Configure logging based on verbosity flags
+    if getattr(args, 'verbose', False):
+        logging.getLogger().setLevel(logging.DEBUG)
+        logger.debug("Verbose mode enabled")
+    elif getattr(args, 'quiet', False):
+        logging.getLogger().setLevel(logging.ERROR)
+
+    # Only print banner if not in quiet/json mode
+    if not getattr(args, 'quiet', False) and not getattr(args, 'json_output', False):
+        print_banner()
+
     # Handle doctor command first (diagnostic mode)
     if hasattr(args, 'doctor') and args.doctor:
         from .doctor import run_doctor
@@ -327,9 +398,33 @@ def main() -> None:
             logger.error(f"Stream error: {e}")
             sys.exit(1)
     
+    # Handle --files-from: read input files from a text file
+    if getattr(args, 'files_from', None):
+        files_from_path = args.files_from
+        if not os.path.exists(files_from_path):
+            console.print(f"[red]Error: --files-from file not found: {files_from_path}[/red]")
+            sys.exit(1)
+        try:
+            with open(files_from_path, 'r') as f:
+                files_from_list = []
+                for line in f:
+                    line = line.strip()
+                    # Skip empty lines and comments
+                    if line and not line.startswith('#'):
+                        files_from_list.append(line)
+            if files_from_list:
+                if args.inputfile is None:
+                    args.inputfile = []
+                args.inputfile.extend(files_from_list)
+                if not getattr(args, 'quiet', False):
+                    console.print(f"[dim]Loaded {len(files_from_list)} files from {files_from_path}[/dim]")
+        except Exception as e:
+            console.print(f"[red]Error reading --files-from: {e}[/red]")
+            sys.exit(1)
+
     # Validate that --input is provided for non-diagnostic operations
     if not args.inputfile:
-        parser.error("the following arguments are required: --input/-i")
+        parser.error("the following arguments are required: --input/-i (or --files-from/-F)")
     
     # Process inputs (handle URLs)
     processed_inputs = []

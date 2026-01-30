@@ -80,6 +80,19 @@ DEFAULT_IGNORED_WORDS = [
 
 
 # ============================================================================
+# Download Configuration
+# ============================================================================
+@dataclass
+class DownloadConfig:
+    """Configuration for yt-dlp downloads (YouTube, X/Twitter, etc.)."""
+    # Cookie options for authenticated downloads (X/Twitter, age-restricted content)
+    # Set to browser name to auto-extract: 'chrome', 'firefox', 'safari', 'edge', 'brave', 'opera', 'chromium'
+    cookies_from_browser: str | None = "brave"
+    # Or specify a Netscape-format cookies.txt file path
+    cookies_file: str | None = None
+
+
+# ============================================================================
 # Server Configuration
 # ============================================================================
 @dataclass
@@ -88,9 +101,10 @@ class ServerConfig:
     host: str = "127.0.0.1"
     port: int = 8000
     db_name: str = "voxgrep_library.db"
-    downloads_dir: str = "downloads"
+    downloads_dir: Path = field(default_factory=lambda: get_data_dir() / "downloads")
     cors_origins: list[str] = field(default_factory=lambda: ["*"])
     log_level: str = "INFO"
+    download: DownloadConfig = field(default_factory=DownloadConfig)
 
 
 # ============================================================================

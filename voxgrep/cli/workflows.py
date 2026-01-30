@@ -3,18 +3,17 @@ Interactive workflow components for VoxGrep CLI.
 
 This module contains reusable workflow functions for interactive mode,
 such as file selection, settings management, and search workflows.
+
+Most functions accept an optional CLIContext parameter for dependency
+injection, enabling testability without actual user interaction.
 """
 
 import os
 import glob
-import subprocess
-import re
-import shutil
-from typing import Any
+from typing import Any, Optional, TYPE_CHECKING
 from argparse import Namespace
 
 import questionary
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
 
 from .ui import console, open_file, open_folder
 from ..utils.config import MEDIA_EXTENSIONS, DEFAULT_IGNORED_WORDS, DEFAULT_WHISPER_MODEL, DEFAULT_DEVICE
@@ -22,6 +21,9 @@ from ..utils import mpv_utils
 from ..utils.helpers import ensure_directory_exists
 from ..utils.prefs import load_prefs, save_prefs
 from ..core.engine import find_transcript
+
+if TYPE_CHECKING:
+    from .io import CLIContext
 
 
 def check_ytdlp_available() -> bool:
@@ -35,7 +37,7 @@ def check_ytdlp_available() -> bool:
 
 def download_from_url(url: str, output_dir: str = ".") -> str | None:
     """
-    Download video from URL using yt-dlp.
+    Download video from URL using yt-dlp, with robust error handling and cookie support.
     
     Args:
         url: URL to download from (YouTube, Vimeo, etc.)
@@ -49,7 +51,7 @@ def download_from_url(url: str, output_dir: str = ".") -> str | None:
         console.print("[dim]Install with: pip install yt-dlp[/dim]")
         return None
     
-    # Import here to avoid circular dependencies if any (though usually strictly hierarchical)
+    # Import here to avoid circular dependencies
     from ..modules.youtube import download_video
     
     output_dir = os.path.abspath(output_dir)
@@ -57,37 +59,63 @@ def download_from_url(url: str, output_dir: str = ".") -> str | None:
 
     console.print(f"\n[bold cyan]Fetching video info from:[/bold cyan] {url}")
     
-    try:
-        # We'll use a custom progress hook to integrate with Rich
-        filepath = None
-        
-        with console.status(f"[bold cyan]Downloading...[/bold cyan]") as status:
-            def progress_hook(d):
-                if d['status'] == 'downloading':
-                    p = d.get('_percent_str', '').strip()
-                    eta = d.get('_eta_str', '').strip()
-                    status.update(f"[bold cyan]Downloading... {p} (ETA: {eta})[/bold cyan]")
-                elif d['status'] == 'finished':
-                    status.update("[bold green]Finalizing download...[/bold green]")
-
-            # Use the shared module function which handles subtitle configuration and merging
-            filepath = download_video(
-                url, 
-                output_template=f"{output_dir}/%(title)s.%(ext)s",
-                progress_hooks=[progress_hook],
-                quiet=True
-            )
-        
-        if filepath and os.path.exists(filepath):
-            console.print(f"[bold green]✓ Downloaded:[/bold green] {os.path.basename(filepath)}")
-            return filepath
-        else:
-            console.print("[bold red]Download reported success but file not found.[/bold red]")
-            return None
+    cookies_from_browser = None
+    
+    while True:
+        try:
+            filepath = None
             
-    except Exception as e:
-        console.print(f"\n[bold red]Download failed:[/bold red] {e}")
-        return None
+            with console.status(f"[bold cyan]Downloading...{' (using cookies)' if cookies_from_browser else ''}[/bold cyan]") as status:
+                def progress_hook(d):
+                    if d['status'] == 'downloading':
+                        p = d.get('_percent_str', '').strip()
+                        eta = d.get('_eta_str', '').strip()
+                        status.update(f"[bold cyan]Downloading... {p} (ETA: {eta})[/bold cyan]")
+                    elif d['status'] == 'finished':
+                        status.update("[bold green]Finalizing download...[/bold green]")
+
+                filepath = download_video(
+                    url, 
+                    output_template=f"{output_dir}/%(title)s.%(ext)s",
+                    progress_hooks=[progress_hook],
+                    quiet=True,
+                    cookies_from_browser=cookies_from_browser
+                )
+            
+            if filepath and os.path.exists(filepath):
+                console.print(f"[bold green]✓ Downloaded:[/bold green] {os.path.basename(filepath)}")
+                return filepath
+            else:
+                console.print("[bold red]Download reported success but file not found.[/bold red]")
+                return None
+                
+        except Exception as e:
+            console.print(f"\n[bold red]Download failed:[/bold red] {e}")
+            
+            # If we already tried with cookies, stop trying
+            if cookies_from_browser:
+                console.print("[red]Download failed even with cookies. Please check your browser login or the URL.[/red]")
+                return None
+            
+            # Check if likely an auth/bot issue
+            is_auth_error = any(x in str(e) for x in ["403", "Forbidden", "Sign in", "bot"])
+            
+            # Ask user if they want to retry with cookies
+            msg = "Download failed (likely anti-bot protections)." if is_auth_error else "Download failed."
+            
+            if questionary.confirm(f"{msg} Try using browser cookies? (Requires you to be logged into YouTube on the selected browser)").ask():
+                cookies_from_browser = questionary.select(
+                    "Select browser to load cookies from:",
+                    choices=["chrome", "firefox", "safari", "edge", "brave", "opera", "chromium"]
+                ).ask()
+                
+                if not cookies_from_browser:
+                    return None
+                    
+                console.print(f"[yellow]Retrying with cookies from {cookies_from_browser}...[/yellow]")
+                continue
+            else:
+                return None
 
 
 def select_input_files() -> list[str] | None:
@@ -178,77 +206,132 @@ def select_input_files() -> list[str] | None:
     return input_files if input_files else None
 
 
-def check_transcripts(input_files: list[str]) -> tuple[bool, list[str]]:
+def check_transcripts(
+    input_files: list[str],
+    ctx: Optional["CLIContext"] = None,
+) -> tuple[bool, list[str]]:
     """
     Check which files are missing transcripts.
-    
+
     Args:
         input_files: List of input file paths
-        
+        ctx: Optional CLI context for prompts
+
     Returns:
         Tuple of (should_transcribe, missing_files)
     """
+    con = ctx.console if ctx else console
+
     missing_transcripts = []
     for f in input_files:
         if not find_transcript(f):
             missing_transcripts.append(f)
-    
+
     should_transcribe = False
     if missing_transcripts:
-        console.print(f"[yellow]Note: {len(missing_transcripts)} file(s) are missing transcripts.[/yellow]")
-        should_transcribe = questionary.confirm(
-            "Transcribe missing files before processing?", 
-            default=True
-        ).ask()
-    
+        con.print(f"[yellow]Note: {len(missing_transcripts)} file(s) are missing transcripts.[/yellow]")
+        if ctx:
+            should_transcribe = ctx.prompts.confirm(
+                "Transcribe missing files before processing?",
+                default=True
+            ) or False
+        else:
+            should_transcribe = questionary.confirm(
+                "Transcribe missing files before processing?",
+                default=True
+            ).ask()
+
     return should_transcribe, missing_transcripts
 
 
-def configure_transcription(args: Namespace, prefs: dict[str, Any]) -> None:
+def configure_transcription(
+    args: Namespace,
+    prefs: dict[str, Any],
+    ctx: Optional["CLIContext"] = None,
+) -> None:
     """
     Configure transcription settings interactively.
-    
+
     Args:
         args: Namespace object to update
         prefs: Preferences dictionary
+        ctx: Optional CLI context for prompts
     """
-    
-    args.device = questionary.select(
-        "Transcription Device", 
-        choices=["cpu", "cuda", "mlx"], 
-        default=prefs.get("device", DEFAULT_DEVICE)
-    ).ask()
-    
-    args.model = questionary.select(
-        "Whisper Model", 
-        choices=["tiny", "base", "small", "medium", "large-v3", "distil-large-v3"], 
-        default=prefs.get("whisper_model", DEFAULT_WHISPER_MODEL)
-    ).ask()
-    
+    prompts = ctx.prompts if ctx else None
+    con = ctx.console if ctx else console
+
+    if prompts:
+        args.device = prompts.select(
+            "Transcription Device",
+            choices=["cpu", "cuda", "mlx"],
+            default=prefs.get("device", DEFAULT_DEVICE)
+        ) or DEFAULT_DEVICE
+    else:
+        args.device = questionary.select(
+            "Transcription Device",
+            choices=["cpu", "cuda", "mlx"],
+            default=prefs.get("device", DEFAULT_DEVICE)
+        ).ask()
+
+    if prompts:
+        args.model = prompts.select(
+            "Whisper Model",
+            choices=["tiny", "base", "small", "medium", "large-v3", "distil-large-v3"],
+            default=prefs.get("whisper_model", DEFAULT_WHISPER_MODEL)
+        ) or DEFAULT_WHISPER_MODEL
+    else:
+        args.model = questionary.select(
+            "Whisper Model",
+            choices=["tiny", "base", "small", "medium", "large-v3", "distil-large-v3"],
+            default=prefs.get("whisper_model", DEFAULT_WHISPER_MODEL)
+        ).ask()
+
     args.language = None
-    manual_lang = questionary.select(
-        "Language",
-        choices=[
-            questionary.Choice("Auto-detect", value="auto"),
-            questionary.Choice("Portuguese (pt)", value="pt"),
-            questionary.Choice("English (en)", value="en"),
-            questionary.Choice("Spanish (es)", value="es"),
-            questionary.Choice("French (fr)", value="fr"),
-            questionary.Choice("Custom code...", value="custom")
-        ]
-    ).ask()
-    
+    if prompts:
+        manual_lang = prompts.select(
+            "Language",
+            choices=[
+                questionary.Choice("Auto-detect", value="auto"),
+                questionary.Choice("Portuguese (pt)", value="pt"),
+                questionary.Choice("English (en)", value="en"),
+                questionary.Choice("Spanish (es)", value="es"),
+                questionary.Choice("French (fr)", value="fr"),
+                questionary.Choice("Custom code...", value="custom")
+            ]
+        )
+    else:
+        manual_lang = questionary.select(
+            "Language",
+            choices=[
+                questionary.Choice("Auto-detect", value="auto"),
+                questionary.Choice("Portuguese (pt)", value="pt"),
+                questionary.Choice("English (en)", value="en"),
+                questionary.Choice("Spanish (es)", value="es"),
+                questionary.Choice("French (fr)", value="fr"),
+                questionary.Choice("Custom code...", value="custom")
+            ]
+        ).ask()
+
     if manual_lang == "custom":
-        args.language = questionary.text("Enter language code (e.g. 'de', 'it'):").ask()
+        if prompts:
+            args.language = prompts.text("Enter language code (e.g. 'de', 'it'):")
+        else:
+            args.language = questionary.text("Enter language code (e.g. 'de', 'it'):").ask()
     elif manual_lang != "auto":
         args.language = manual_lang
-    
+
     # Ask about high accuracy mode
-    use_high_accuracy = questionary.confirm(
-        "Enable High Accuracy Mode? (slower but better transcription)",
-        default=prefs.get("high_accuracy_mode", False)
-    ).ask()
-    
+    if prompts:
+        use_high_accuracy = prompts.confirm(
+            "Enable High Accuracy Mode? (slower but better transcription)",
+            default=prefs.get("high_accuracy_mode", False)
+        ) or False
+    else:
+        use_high_accuracy = questionary.confirm(
+            "Enable High Accuracy Mode? (slower but better transcription)",
+            default=prefs.get("high_accuracy_mode", False)
+        ).ask()
+
     # Update prefs
     prefs["high_accuracy_mode"] = use_high_accuracy
 
@@ -257,107 +340,155 @@ def configure_transcription(args: Namespace, prefs: dict[str, Any]) -> None:
         args.beam_size = 10  # Higher beam size
         args.best_of = 10
         args.vad_filter = True
-        console.print("[green]✓ High Accuracy Mode enabled (beam_size=10, VAD enabled)[/green]")
+        con.print("[green]High Accuracy Mode enabled (beam_size=10, VAD enabled)[/green]")
     else:
         # Use default/saved settings
         args.beam_size = prefs.get("beam_size", 5)
         args.best_of = prefs.get("best_of", 5)
         args.vad_filter = prefs.get("vad_filter", True)
-    
+
     # Update prefs with specific settings (which might have been set by high accuracy)
     prefs["beam_size"] = args.beam_size
     prefs["best_of"] = args.best_of
     prefs["vad_filter"] = args.vad_filter
 
     # Ask about audio normalization
-    args.normalize_audio = questionary.confirm(
-        "Normalize audio levels? (improves accuracy for uneven volumes)",
-        default=prefs.get("normalize_audio", False)
-    ).ask()
-    
+    if prompts:
+        args.normalize_audio = prompts.confirm(
+            "Normalize audio levels? (improves accuracy for uneven volumes)",
+            default=prefs.get("normalize_audio", False)
+        ) or False
+    else:
+        args.normalize_audio = questionary.confirm(
+            "Normalize audio levels? (improves accuracy for uneven volumes)",
+            default=prefs.get("normalize_audio", False)
+        ).ask()
+
     prefs["normalize_audio"] = args.normalize_audio
 
     if args.normalize_audio:
-        console.print("[green]✓ Audio normalization enabled (loudnorm filter)[/green]")
-    
+        con.print("[green]Audio normalization enabled (loudnorm filter)[/green]")
+
     # Ask about project-specific vocabulary
     project_vocab = prefs.get("project_vocabulary", [])
     if project_vocab:
-        use_vocab = questionary.confirm(
-            f"Use saved project vocabulary? ({len(project_vocab)} terms)",
-            default=True
-        ).ask()
+        if prompts:
+            use_vocab = prompts.confirm(
+                f"Use saved project vocabulary? ({len(project_vocab)} terms)",
+                default=True
+            ) or False
+        else:
+            use_vocab = questionary.confirm(
+                f"Use saved project vocabulary? ({len(project_vocab)} terms)",
+                default=True
+            ).ask()
         if use_vocab:
             args.prompt = ", ".join(project_vocab)
-            console.print(f"[dim]Using vocabulary: {args.prompt[:100]}...[/dim]")
+            con.print(f"[dim]Using vocabulary: {args.prompt[:100]}...[/dim]")
     else:
-        add_vocab = questionary.confirm(
-            "Add project-specific vocabulary? (names, terms, slang)",
-            default=False
-        ).ask()
-        if add_vocab:
-            vocab_input = questionary.text(
-                "Enter terms (comma separated):",
-                default=""
+        if prompts:
+            add_vocab = prompts.confirm(
+                "Add project-specific vocabulary? (names, terms, slang)",
+                default=False
+            ) or False
+        else:
+            add_vocab = questionary.confirm(
+                "Add project-specific vocabulary? (names, terms, slang)",
+                default=False
             ).ask()
+        if add_vocab:
+            if prompts:
+                vocab_input = prompts.text("Enter terms (comma separated):", default="")
+            else:
+                vocab_input = questionary.text(
+                    "Enter terms (comma separated):",
+                    default=""
+                ).ask()
             if vocab_input:
                 vocab_list = [v.strip() for v in vocab_input.split(",") if v.strip()]
-                # args.prompt will be set if they just added it? Users usually want to use what they just added.
                 args.prompt = ", ".join(vocab_list)
                 # Save to prefs
                 prefs["project_vocabulary"] = vocab_list
-                save_prefs(prefs)
-                console.print(f"[green]✓ Vocabulary saved for future use[/green]")
+                if ctx:
+                    ctx.prefs_saver(prefs)
+                else:
+                    save_prefs(prefs)
+                con.print("[green]Vocabulary saved for future use[/green]")
 
 
 
-def settings_menu(prefs: dict[str, Any]) -> tuple[list[str], bool]:
+def settings_menu(
+    prefs: dict[str, Any],
+    ctx: Optional["CLIContext"] = None,
+) -> tuple[list[str], bool]:
     """
     Interactive settings menu for ignored words and filters.
-    
+
     Args:
         prefs: Preferences dictionary
-        
+        ctx: Optional CLI context for prompts
+
     Returns:
         Tuple of (ignored_words_list, use_ignored_words_flag)
     """
+    prompts = ctx.prompts if ctx else None
+    con = ctx.console if ctx else console
+    prefs_saver = ctx.prefs_saver if ctx else save_prefs
+
     ignored_words = prefs.get("ignored_words", DEFAULT_IGNORED_WORDS)
     use_ignored_words = prefs.get("use_ignored_words", True)
-    
+
     while True:
         current_ignored = ", ".join(ignored_words)
         status_text = "ENABLED" if use_ignored_words else "DISABLED"
-        
-        action = questionary.select(
-            "Settings",
-            choices=[
-                questionary.Choice(f"Filter Ignored Words [{status_text}]", value="toggle_filter"),
-                questionary.Choice("Edit Ignored Words List", value="edit_ignored"),
-                questionary.Separator(),
-                questionary.Choice("Back", value="back")
-            ]
-        ).ask()
-        
-        if action == "back":
+
+        if prompts:
+            action = prompts.select(
+                "Settings",
+                choices=[
+                    questionary.Choice(f"Filter Ignored Words [{status_text}]", value="toggle_filter"),
+                    questionary.Choice("Edit Ignored Words List", value="edit_ignored"),
+                    questionary.Separator(),
+                    questionary.Choice("Back", value="back")
+                ]
+            )
+        else:
+            action = questionary.select(
+                "Settings",
+                choices=[
+                    questionary.Choice(f"Filter Ignored Words [{status_text}]", value="toggle_filter"),
+                    questionary.Choice("Edit Ignored Words List", value="edit_ignored"),
+                    questionary.Separator(),
+                    questionary.Choice("Back", value="back")
+                ]
+            ).ask()
+
+        if action == "back" or action is None:
             break
-        
+
         if action == "toggle_filter":
             use_ignored_words = not use_ignored_words
             prefs["use_ignored_words"] = use_ignored_words
-            save_prefs(prefs)
+            prefs_saver(prefs)
             continue
 
         if action == "edit_ignored":
-            console.print(f"\n[yellow]Current Ignored Words:[/yellow] {current_ignored}\n")
-            new_ignored = questionary.text(
-                "Enter ignored words (comma separated, leave empty to clear):", 
-                default=current_ignored
-            ).ask()
+            con.print(f"\n[yellow]Current Ignored Words:[/yellow] {current_ignored}\n")
+            if prompts:
+                new_ignored = prompts.text(
+                    "Enter ignored words (comma separated, leave empty to clear):",
+                    default=current_ignored
+                ) or ""
+            else:
+                new_ignored = questionary.text(
+                    "Enter ignored words (comma separated, leave empty to clear):",
+                    default=current_ignored
+                ).ask() or ""
             ignored_words = [w.strip() for w in new_ignored.split(",") if w.strip()]
             prefs["ignored_words"] = ignored_words
-            save_prefs(prefs)
-            console.print("[green]Settings saved.[/green]\n")
-    
+            prefs_saver(prefs)
+            con.print("[green]Settings saved.[/green]\n")
+
     return ignored_words, use_ignored_words
 
 
@@ -390,74 +521,147 @@ def post_export_menu(output_file: str) -> str:
     return action
 
 
-def search_settings_menu(args: Namespace) -> None:
+def _validate_padding(value: str) -> bool | str:
+    """Validate padding input is a non-negative number."""
+    try:
+        num = float(value)
+        if num < 0:
+            return "Padding cannot be negative"
+        if num > 60:
+            return "Padding over 60 seconds is likely a mistake"
+        return True
+    except ValueError:
+        return "Please enter a valid number"
+
+
+def _validate_maxclips(value: str) -> bool | str:
+    """Validate max clips input is a non-negative integer."""
+    try:
+        num = int(value)
+        if num < 0:
+            return "Max clips cannot be negative"
+        return True
+    except ValueError:
+        return "Please enter a valid integer"
+
+
+def search_settings_menu(
+    args: Namespace,
+    ctx: Optional["CLIContext"] = None,
+) -> None:
     """
     Configure search-specific settings (padding, max clips, randomize).
-    
+
     Args:
         args: Namespace object to update
+        ctx: Optional CLI context for prompts
     """
-    args.padding = float(questionary.text(
-        "Padding (seconds):", 
-        default=str(args.padding or 0)
-    ).ask())
-    
-    args.maxclips = int(questionary.text(
-        "Max Clips (0 for all):", 
-        default=str(args.maxclips)
-    ).ask())
-    
-    args.randomize = questionary.confirm(
-        "Randomize clip order?", 
-        default=args.randomize
-    ).ask()
+    prompts = ctx.prompts if ctx else None
 
-    args.burn_in_subtitles = questionary.confirm(
-        "Burn-in Subtitles in output supercut?",
-        default=getattr(args, 'burn_in_subtitles', False)
-    ).ask()
+    if prompts:
+        padding_str = prompts.text(
+            "Padding (seconds):",
+            default=str(args.padding or 0),
+            validate=_validate_padding
+        ) or "0"
+    else:
+        padding_str = questionary.text(
+            "Padding (seconds):",
+            default=str(args.padding or 0),
+            validate=_validate_padding
+        ).ask()
+    args.padding = float(padding_str) if padding_str else 0
+
+    if prompts:
+        maxclips_str = prompts.text(
+            "Max Clips (0 for all):",
+            default=str(args.maxclips),
+            validate=_validate_maxclips
+        ) or "0"
+    else:
+        maxclips_str = questionary.text(
+            "Max Clips (0 for all):",
+            default=str(args.maxclips),
+            validate=_validate_maxclips
+        ).ask()
+    args.maxclips = int(maxclips_str) if maxclips_str else 0
+
+    if prompts:
+        args.randomize = prompts.confirm(
+            "Randomize clip order?",
+            default=args.randomize
+        ) or False
+    else:
+        args.randomize = questionary.confirm(
+            "Randomize clip order?",
+            default=args.randomize
+        ).ask()
+
+    if prompts:
+        args.burn_in_subtitles = prompts.confirm(
+            "Burn-in Subtitles in output supercut?",
+            default=getattr(args, 'burn_in_subtitles', False)
+        ) or False
+    else:
+        args.burn_in_subtitles = questionary.confirm(
+            "Burn-in Subtitles in output supercut?",
+            default=getattr(args, 'burn_in_subtitles', False)
+        ).ask()
 
 
-def get_output_filename(search_terms: list[str], default_prefix: str = "supercut") -> str:
+def get_output_filename(
+    search_terms: list[str],
+    default_prefix: str = "supercut",
+    ctx: Optional["CLIContext"] = None,
+) -> str:
     """
     Get output filename from user, with smart default based on search terms.
-    
+
     Args:
         search_terms: List of search terms
         default_prefix: Default prefix if no valid search term available
-        
+        ctx: Optional CLI context for prompts
+
     Returns:
         Output filename with .mp4 extension
     """
+    prompts = ctx.prompts if ctx else None
+
     MAX_FILENAME_LENGTH = 100  # Reasonable limit for filenames
-    
+
     default_out = default_prefix
     if search_terms:
         # Join all search terms with '+'
         combined_terms = "+".join(search_terms)
         # Sanitize: keep only alphanumeric, spaces, hyphens, underscores, and plus signs
         safe_term = "".join([
-            c if c.isalnum() or c in (' ', '-', '_', '+') else '' 
+            c if c.isalnum() or c in (' ', '-', '_', '+') else ''
             for c in combined_terms
         ]).strip().replace(' ', '+')
-        
+
         # Truncate if too long
         if safe_term and len(safe_term) > MAX_FILENAME_LENGTH:
             safe_term = safe_term[:MAX_FILENAME_LENGTH].rstrip('+')
-        
+
         if safe_term:
             default_out = safe_term
-    
-    out_name = questionary.text(
-        f"Output Filename (default: {default_out})", 
-        default=""
-    ).ask()
-    
+
+    if prompts:
+        out_name = prompts.text(
+            f"Output Filename (default: {default_out})",
+            default=""
+        ) or ""
+    else:
+        out_name = questionary.text(
+            f"Output Filename (default: {default_out})",
+            default=""
+        ).ask()
+
     if not out_name:
         out_name = default_out
     if not out_name.lower().endswith(".mp4"):
         out_name += ".mp4"
-    
+
     return out_name
 
 

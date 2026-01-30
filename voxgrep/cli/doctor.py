@@ -74,7 +74,7 @@ class EnvironmentDoctor:
                     timeout=2
                 )
                 return True
-            except:
+            except Exception:
                 return False
     
     def detect_environment_type(self) -> str:
@@ -179,7 +179,7 @@ class EnvironmentDoctor:
             import pkg_resources
             dist = pkg_resources.get_distribution("voxgrep")
             return f"pip ({dist.version})"
-        except:
+        except Exception:
             pass
         
         return "Unknown"
@@ -249,26 +249,77 @@ class EnvironmentDoctor:
         opt_table.add_column("Package", style="cyan")
         opt_table.add_column("Status", style="white")
         opt_table.add_column("Feature", style="dim")
-        
+        opt_table.add_column("Why?", style="dim italic")
+
         optional_features = {
-            "faster-whisper": "CPU/CUDA Transcription",
-            "mlx-whisper": "MLX (Apple Silicon) Transcription",
-            "sentence-transformers": "Semantic Search",
-            "torch": "AI/ML (Required for Semantic Search)",
-            "spacy": "NLP Features",
-            "pyannote.audio": "Speaker Diarization",
-            "openai": "OpenAI API Integration",
+            "faster-whisper": (
+                "CPU/CUDA Transcription",
+                "Local transcription on any machine. Use CUDA for 10x speedup on NVIDIA GPUs."
+            ),
+            "mlx-whisper": (
+                "MLX (Apple Silicon) Transcription",
+                "3-5x faster transcription on M1/M2/M3 Macs. Highly recommended for macOS."
+            ),
+            "sentence-transformers": (
+                "Semantic Search",
+                "Search by meaning, not just keywords. Find 'angry moments' or 'funny scenes'."
+            ),
+            "torch": (
+                "AI/ML Framework",
+                "Required for semantic search and advanced AI features."
+            ),
+            "spacy": (
+                "NLP Features",
+                "Better n-gram analysis and phrase extraction."
+            ),
+            "pyannote.audio": (
+                "Speaker Diarization",
+                "Identify who is speaking. Filter clips by speaker."
+            ),
+            "openai": (
+                "OpenAI API",
+                "Cloud transcription fallback. No local GPU required."
+            ),
         }
-        
+
         optional_deps = self.check_optional_dependencies()
         for package, installed in optional_deps.items():
+            feature, why = optional_features.get(package, ("", ""))
             opt_table.add_row(
                 package,
                 "[green]✓ Installed[/green]" if installed else "[dim]- Not installed[/dim]",
-                optional_features.get(package, "")
+                feature,
+                why if not installed else ""  # Only show "why" for missing packages
             )
         
         console.print(opt_table)
+
+        # Show smart recommendations for missing optional deps
+        missing_optional = [pkg for pkg, installed in optional_deps.items() if not installed]
+        if missing_optional:
+            import platform
+            is_mac = platform.system() == "Darwin"
+            is_apple_silicon = is_mac and platform.machine() == "arm64"
+
+            rec_text = Text()
+            rec_text.append("\n💡 Recommended installs for your system:\n", style="bold cyan")
+
+            if is_apple_silicon and "mlx-whisper" in missing_optional:
+                rec_text.append("   pip install mlx-whisper", style="green")
+                rec_text.append("  # Fast transcription on Apple Silicon\n", style="dim")
+            elif "faster-whisper" in missing_optional:
+                rec_text.append("   pip install faster-whisper", style="green")
+                rec_text.append("  # Local transcription\n", style="dim")
+
+            if "sentence-transformers" in missing_optional and "torch" in missing_optional:
+                rec_text.append("   pip install torch sentence-transformers", style="green")
+                rec_text.append("  # Semantic search\n", style="dim")
+
+            rec_text.append("\n   Or install everything: ", style="dim")
+            rec_text.append("poetry install --extras full\n", style="yellow")
+
+            console.print(rec_text)
+
         console.print()
         
         # System Commands

@@ -8,15 +8,16 @@ transcription, n-gram analysis, and search operations.
 import os
 from collections import Counter
 from argparse import Namespace
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Union, overload
 
 from rich.progress import (
-    Progress, SpinnerColumn, TextColumn, BarColumn, 
+    Progress, SpinnerColumn, TextColumn, BarColumn,
     TaskProgressColumn, TimeRemainingColumn
 )
 import logging
 
 from .ui import console, print_ngrams_table, print_success_panel
+from .config import SearchConfig, ExportConfig, TranscriptionConfig
 from ..utils.helpers import setup_logger
 from ..formats import sphinx
 from ..core import logic as voxgrep
@@ -240,6 +241,74 @@ def calculate_ngrams(
         return most_common, filtered
 
 
+def run_voxgrep_search_with_config(
+    files: List[str],
+    search: SearchConfig,
+    export: ExportConfig,
+    progress_callback=None,
+) -> Union[bool, dict]:
+    """
+    Execute voxgrep search using typed config objects.
+
+    This is the preferred interface for new code. It accepts strongly-typed
+    configuration objects instead of individual parameters.
+
+    Args:
+        files: List of input files
+        search: Search configuration
+        export: Export configuration
+        progress_callback: Optional progress callback function
+
+    Returns:
+        Result from voxgrep (bool or dict with stats)
+    """
+    return run_voxgrep_search(
+        files=files,
+        query=search.query,
+        search_type=search.search_type,
+        output=export.output,
+        maxclips=search.maxclips,
+        padding=search.padding,
+        demo=export.demo,
+        random_order=search.randomize,
+        resync=search.resync,
+        export_clips=export.export_clips,
+        write_vtt=export.write_vtt,
+        preview=export.preview,
+        exact_match=search.exact_match,
+        progress_callback=progress_callback,
+        burn_in_subtitles=export.burn_in_subtitles,
+    )
+
+
+def run_transcription_with_config(
+    files: List[str],
+    config: TranscriptionConfig,
+) -> None:
+    """
+    Run Whisper transcription using typed config object.
+
+    This is the preferred interface for new code.
+
+    Args:
+        files: List of files to transcribe
+        config: Transcription configuration
+    """
+    run_transcription_whisper(
+        input_files=files,
+        model=config.model,
+        device=config.device,
+        compute_type=config.compute_type,
+        language=config.language,
+        prompt=config.prompt,
+        beam_size=config.beam_size,
+        best_of=config.best_of,
+        vad_filter=config.vad_filter,
+        normalize_audio=config.normalize_audio,
+        translate=config.translate,
+    )
+
+
 def run_voxgrep_search(
     files: List[str],
     query: List[str],
@@ -254,9 +323,9 @@ def run_voxgrep_search(
     write_vtt: bool = False,
     preview: bool = False,
     exact_match: bool = False,
-    progress_callback = None,
+    progress_callback=None,
     burn_in_subtitles: bool = False
-) -> bool:
+) -> Union[bool, dict]:
     """
     Execute voxgrep search with optional progress tracking.
     

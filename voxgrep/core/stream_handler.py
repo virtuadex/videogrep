@@ -19,7 +19,7 @@ class StreamHandler:
     def __init__(self, callback: Optional[Callable] = None):
         """
         Initialize StreamHandler.
-        
+
         Args:
             callback: Function called with new segments list when a chunk is processed.
         """
@@ -27,7 +27,9 @@ class StreamHandler:
         self.running = False
         self.process_ytdlp = None
         self.process_ffmpeg = None
-        
+        self.cookies_from_browser = None
+        self.cookies_file = None
+
         self.model_mgr = get_model_manager()
         
         # Audio settings for Whisper (16kHz mono)
@@ -37,22 +39,26 @@ class StreamHandler:
         self.CHUNK_SIZE = int(self.SAMPLE_RATE * self.BUFFER_DURATION * 2) 
         
     def start_processing(
-        self, 
-        url: str, 
-        output_path: str, 
+        self,
+        url: str,
+        output_path: str,
         device: str = "cpu",
         model: str = "base",
-        compute_type: str = "int8"
+        compute_type: str = "int8",
+        cookies_from_browser: str = None,
+        cookies_file: str = None
     ):
         """
         Start concurrent download and transcription.
-        
+
         Args:
-            url: The URL to download (YouTube, etc.)
+            url: The URL to download (YouTube, X/Twitter, etc.)
             output_path: Local path to save the full recording.
             device: Device to use (cpu, cuda, mlx).
             model: Whisper model name.
             compute_type: Compute type (int8, float16, etc).
+            cookies_from_browser: Browser to extract cookies from (chrome, firefox, safari, etc.)
+            cookies_file: Path to Netscape-format cookies.txt file
         """
         if self.running:
             logger.warning("StreamHandler already running.")
@@ -62,10 +68,12 @@ class StreamHandler:
         self.device = device
         self.model = model
         self.compute_type = compute_type
-        
+        self.cookies_from_browser = cookies_from_browser
+        self.cookies_file = cookies_file
+
         # Start IO thread (Download -> File + FFmpeg)
         self.io_thread = threading.Thread(
-            target=self._io_loop, 
+            target=self._io_loop,
             args=(url, output_path),
             name="StreamIO"
         )
@@ -90,7 +98,7 @@ class StreamHandler:
             
     def _io_loop(self, url, output_path):
         logger.info(f"Starting stream download: {url} -> {output_path}")
-        
+
         # 1. yt-dlp to stdout
         ytdlp_cmd = [
             "yt-dlp",
@@ -99,6 +107,14 @@ class StreamHandler:
             "--quiet", "--no-warnings",
             "-f", "bestvideo+bestaudio/best"  # Ensure we get a stream
         ]
+
+        # Add cookie support for X/Twitter and other authenticated sources
+        if self.cookies_from_browser:
+            ytdlp_cmd.extend(["--cookies-from-browser", self.cookies_from_browser])
+            logger.info(f"Using cookies from browser: {self.cookies_from_browser}")
+        elif self.cookies_file:
+            ytdlp_cmd.extend(["--cookies", self.cookies_file])
+            logger.info(f"Using cookies file: {self.cookies_file}")
         
         # 2. ffmpeg to decode stdin to PCM s16le stdout
         ffmpeg_cmd = [

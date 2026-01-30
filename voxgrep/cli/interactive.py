@@ -3,14 +3,19 @@ Interactive mode for VoxGrep CLI.
 
 This module provides the main interactive wizard for configuring
 and executing VoxGrep tasks through a menu-driven interface.
+
+The main entry point is `interactive_mode()` which delegates to the
+InteractiveWizard state machine for cleaner flow control.
 """
 
 from argparse import Namespace
-from typing import Any
+from typing import Any, Optional
 
 import questionary
 
 from .ui import console, print_session_summary
+from .io import CLIContext
+from .config import SessionConfig
 
 from .workflows import (
     select_input_files, check_transcripts, configure_transcription,
@@ -20,9 +25,9 @@ from .workflows import (
 from .commands import run_voxgrep_search, execute_args, run_transcription_whisper
 from .ngrams import interactive_ngrams_workflow
 from ..utils.config import (
-    DEFAULT_WHISPER_MODEL, 
-    DEFAULT_DEVICE, 
-    DEFAULT_SEARCH_TYPE, 
+    DEFAULT_WHISPER_MODEL,
+    DEFAULT_DEVICE,
+    DEFAULT_SEARCH_TYPE,
     DEFAULT_IGNORED_WORDS
 )
 from ..utils.prefs import load_prefs, save_prefs
@@ -31,58 +36,43 @@ from ..utils.prefs import load_prefs, save_prefs
 def create_default_args(input_files: list[str], prefs: dict[str, Any]) -> Namespace:
     """
     Create a Namespace with default arguments.
-    
+
     Args:
         input_files: List of input file paths
         prefs: Preferences dictionary
-        
+
     Returns:
         Namespace with default values
+
+    Note:
+        This function is kept for backward compatibility.
+        New code should use SessionConfig.from_prefs() instead.
     """
-    args = Namespace()
-    args.inputfile = input_files
-    args.outputfile = "supercut.mp4"
-    args.export_clips = False
-    args.write_vtt = False
-    args.search = None
-    args.searchtype = prefs.get("search_type", DEFAULT_SEARCH_TYPE)
-    args.maxclips = 0
-    args.randomize = False
-    args.exact_match = False
-    args.burn_in_subtitles = False
-    
-    # Ignored words settings
-    args.ignored_words = prefs.get("ignored_words", DEFAULT_IGNORED_WORDS)
-    args.use_ignored_words = prefs.get("use_ignored_words", True)
-    
-    # Transcription settings
-    args.padding = None
-    args.sync = 0
-    args.transcribe = False
-    args.model = prefs.get("whisper_model", DEFAULT_WHISPER_MODEL)
-    args.device = prefs.get("device", DEFAULT_DEVICE)
-    args.compute_type = prefs.get("compute_type", "default")
-    args.language = None
-    args.prompt = None
-    args.beam_size = prefs.get("beam_size", 5)
-    args.best_of = prefs.get("best_of", 5)
-    args.vad_filter = prefs.get("vad_filter", True)
-    args.normalize_audio = prefs.get("normalize_audio", False)
-    args.sphinxtranscribe = False
-    args.ngrams = 0
-    args.preview = prefs.get("preview", False)
-    args.demo = prefs.get("demo", False)
-    
-    return args
+    # Use SessionConfig for cleaner creation, then convert to Namespace
+    session = SessionConfig.from_prefs(prefs, input_files)
+    return session.to_namespace()
+
+
+def get_default_output_name(search_terms: list[str] | None) -> str:
+    """Get a safe default output name from search terms."""
+    default_out = "supercut"
+    if search_terms:
+        safe_term = "".join([
+            c if c.isalnum() or c in (' ', '-', '_') else ''
+            for c in search_terms[0]
+        ]).strip().replace(' ', '_')
+        if safe_term:
+            default_out = safe_term
+    return default_out
 
 
 def handle_search_workflow(args: Namespace) -> bool:
     """
     Handle the search workflow including preview, export, and settings.
-    
+
     Args:
         args: Namespace with search configuration
-        
+
     Returns:
         True to continue main loop, False to exit
     """
@@ -90,9 +80,9 @@ def handle_search_workflow(args: Namespace) -> bool:
     search_input = questionary.text("Enter search terms (comma separated):").ask()
     if not search_input:
         return True
-    
+
     args.search = [s.strip() for s in search_input.split(',') if s.strip()]
-    
+
     # Select search type
     args.searchtype = questionary.select(
         "Search Type",
@@ -103,7 +93,7 @@ def handle_search_workflow(args: Namespace) -> bool:
     # Search workflow loop
     while True:
         default_out = get_default_output_name(args.search)
-        
+
         # Show menu
         action = questionary.select(
             "Next Step:",
@@ -116,7 +106,7 @@ def handle_search_workflow(args: Namespace) -> bool:
             ],
             default="preview"
         ).ask()
-        
+
         if action == "cancel":
             return True
 
@@ -138,10 +128,10 @@ def handle_search_workflow(args: Namespace) -> bool:
                 exact_match=args.exact_match,
                 burn_in_subtitles=args.burn_in_subtitles
             )
-            
+
             if isinstance(result, dict):
                 print_session_summary(result)
-            
+
             continue
 
         if action == "settings":
@@ -152,7 +142,7 @@ def handle_search_workflow(args: Namespace) -> bool:
             args.preview = False
             args.demo = False
             args.outputfile = get_output_filename(args.search, default_out)
-            
+
             # Run export with progress
             result = run_voxgrep_search(
                 files=args.inputfile,
@@ -170,172 +160,40 @@ def handle_search_workflow(args: Namespace) -> bool:
                 exact_match=args.exact_match,
                 burn_in_subtitles=args.burn_in_subtitles
             )
-            
+
             if isinstance(result, dict) and result.get("success"):
                 print_session_summary(result)
-            
+
             # Post-export menu
-            while result:
-                post_action = post_export_menu(args.outputfile)
-                
+            if result:
+                while True:
+                    post_action = post_export_menu(args.outputfile)
+
+                    if post_action == "edit":
+                        break  # Back to search workflow loop
+                    elif post_action in ("new", "menu"):
+                        return True  # Back to main menu
+
                 if post_action == "edit":
-                    break  # Back to search workflow loop
-                elif post_action in ("new", "menu"):
-                    return True  # Back to main menu
-            
-            if post_action == "edit":
-                continue
-            else:
-                return True
-    
+                    continue
+
+            return True
+
     return True
 
 
-def get_default_output_name(search_terms: list[str] | None) -> str:
-    """Get a safe default output name from search terms."""
-    default_out = "supercut"
-    if search_terms:
-        safe_term = "".join([
-            c if c.isalnum() or c in (' ', '-', '_') else '' 
-            for c in search_terms[0]
-        ]).strip().replace(' ', '_')
-        if safe_term:
-            default_out = safe_term
-    return default_out
-
-
-def interactive_mode() -> None:
+def interactive_mode(ctx: Optional[CLIContext] = None) -> None:
     """
     Run an interactive wizard to gather arguments and execute tasks.
+
+    This function delegates to the InteractiveWizard state machine for
+    cleaner flow control and better testability.
+
+    Args:
+        ctx: Optional CLI context for dependency injection. If None,
+             uses default production implementations.
     """
-    console.print("[bold yellow]Interactive Mode[/bold yellow]")
-    console.print("Let's configure your task.\n")
+    from .wizard import InteractiveWizard
 
-    prefs = load_prefs()
-    
-    # Select input files
-    input_files = select_input_files()
-    if not input_files:
-        return
-
-    console.print(f"[green]Selected {len(input_files)} files.[/green]\n")
-
-    # Main loop
-    while True:
-        args = create_default_args(input_files, prefs)
-        
-        # Main task selection
-        task = questionary.select(
-            "What would you like to do?",
-            choices=[
-                questionary.Choice("Search", value="search"),
-                questionary.Choice("Transcription Only", value="transcribe"),
-                questionary.Choice("Calculate N-grams", value="ngrams"),
-                questionary.Separator(),
-                questionary.Choice("Manage Selected Files (Rename, Remove...)", value="manage_files"),
-                questionary.Choice("Settings (Ignored Words, etc.)", value="settings_menu"),
-                questionary.Choice("Change/Reselect Files", value="change_files"),
-                questionary.Choice("Exit", value="exit")
-            ],
-            default="search"
-        ).ask()
-
-        if task is None or task == "exit":
-            break
-            
-        if task == "change_files":
-            return interactive_mode()  # Restart with new files
-
-        if task == "manage_files":
-            input_files = manage_files_menu(input_files)
-            if not input_files:
-                console.print("[yellow]All files removed. Please select files again.[/yellow]")
-                return interactive_mode()
-            continue
-
-        if task == "settings_menu":
-            ignored_words, use_ignored_words = settings_menu(prefs)
-            args.ignored_words = ignored_words
-            args.use_ignored_words = use_ignored_words
-            continue
-
-        # Check for transcription needs
-        if task == "transcribe":
-            args.transcribe = True
-            configure_transcription(args, prefs)
-        elif task != "search":
-            # For ngrams, check if transcription is needed
-            should_transcribe, missing_files = check_transcripts(args.inputfile)
-            if should_transcribe:
-                args.transcribe = True
-                configure_transcription(args, prefs)
-            elif missing_files and task == "ngrams":
-                console.print("[bold red]Error: Cannot calculate n-grams without transcripts.[/bold red]")
-                continue
-        else:
-            # For search, optionally transcribe
-            should_transcribe, _ = check_transcripts(args.inputfile)
-            if should_transcribe:
-                args.transcribe = True
-                configure_transcription(args, prefs)
-
-        # Handle specific tasks
-        try:
-            # Execute transcription if requested/needed (before task-specific workflows)
-            if args.transcribe:
-                run_transcription_whisper(
-                    args.inputfile,
-                    args.model,
-                    args.device,
-                    args.compute_type,
-                    args.language,
-                    args.prompt,
-                    getattr(args, 'beam_size', 5),
-                    getattr(args, 'best_of', 5),
-                    getattr(args, 'vad_filter', True),
-                    getattr(args, 'normalize_audio', False)
-                )
-                console.print("[green]✓ Transcription complete[/green]\n")
-                args.transcribe = False  # Reset flag
-
-            if task == "search":
-                if not handle_search_workflow(args):
-                    break
-            elif task == "ngrams":
-                # Check for missing transcripts again to be safe, though handled above
-                _, missing_files = check_transcripts(args.inputfile)
-                if missing_files:
-                     console.print("[red]Cannot proceed with n-grams: Transcripts missing.[/red]")
-                     continue
-                        
-                args.ngrams = int(questionary.text("Enter N for N-grams", default="1").ask())
-                interactive_ngrams_workflow(args)
-                console.print("\n[dim]--- Task Complete ---[/dim]\n")
-            else:
-                # Transcription only
-                if not args.transcribe:  # Already done above if it was needed
-                    console.print("\n[dim]--- Task Complete ---[/dim]\n")
-                else:
-                    execute_args(args)
-                    console.print("\n[dim]--- Task Complete ---[/dim]\n")
-        except KeyboardInterrupt:
-            # User cancelled - just continue to menu
-            console.print("\n[dim]Returning to menu...[/dim]\n")
-            continue
-        except Exception as e:
-            console.print(f"\n[bold red]Error:[/bold red] {e}\n")
-            console.print("[dim]Returning to menu...[/dim]\n")
-            continue
-        
-        # Save preferences (update existing prefs to preserve other keys)
-        prefs.update({
-            "device": args.device,
-            "whisper_model": args.model,
-            "search_type": args.searchtype,
-            "preview": args.preview,
-            "demo": args.demo,
-            "ignored_words": args.ignored_words,
-            "use_ignored_words": args.use_ignored_words,
-            "burn_in_subtitles": args.burn_in_subtitles
-        })
-        save_prefs(prefs)
+    wizard = InteractiveWizard(ctx)
+    wizard.run()
